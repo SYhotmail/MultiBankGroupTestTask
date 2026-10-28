@@ -16,7 +16,6 @@ struct StockSymbolDetailView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ConnectionStatusView(state: store.connectionState)
                 Text(symbol.name)
                     .font(.title3)
                     .foregroundStyle(.secondary)
@@ -37,7 +36,7 @@ struct StockSymbolDetailView: View {
             .padding()
         }
         .navigationTitle(symbol.ticker)
-        .toolbar { FeedToggleButton(store: store) }
+        .toolbar { FeedToolbar(store: store) }
     }
 }
 

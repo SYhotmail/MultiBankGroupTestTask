@@ -13,30 +13,34 @@ struct StockSymbolsListView: View {
     var body: some View {
         @Bindable var store = store
 
-        List {
-            Section {
-                ForEach(store.sortedSymbols) { symbol in
-                    NavigationLink(value: symbol) {
-                        StockSymbolRow(symbol: symbol, quote: store.quote(for: symbol))
+        // Rows live in a child view so price ticks don't rebuild the toolbar (and dismiss the sort menu).
+        StockSymbolsList(store: store)
+            .navigationTitle("Stocks")
+            .toolbar {
+                FeedToolbar(store: store)
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                        Picker("Sort by", selection: $store.sortOrder) {
+                            Label("Price", systemImage: "dollarsign").tag(StockPriceStore.SortOrder.price)
+                            Label("Price Change", systemImage: "plusminus").tag(StockPriceStore.SortOrder.priceChange)
+                        }
                     }
                 }
-            } header: {
-                VStack(alignment: .leading) {
-                    ConnectionStatusView(state: store.connectionState)
-                    Picker("Sort by", selection: $store.sortOrder) {
-                        Text("Price").tag(StockPriceStore.SortOrder.price)
-                        Text("Price Change").tag(StockPriceStore.SortOrder.priceChange)
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .textCase(nil)
-                .padding(.vertical, 8)
+            }
+    }
+}
+
+private struct StockSymbolsList: View {
+    let store: StockPriceStore
+
+    var body: some View {
+        List(store.sortedSymbols) { symbol in
+            NavigationLink(value: symbol) {
+                StockSymbolRow(symbol: symbol, quote: store.quote(for: symbol))
             }
         }
         .listStyle(.plain)
         .animation(.default, value: store.sortedSymbols)
-        .navigationTitle("Stocks")
-        .toolbar { FeedToggleButton(store: store) }
     }
 }
 
