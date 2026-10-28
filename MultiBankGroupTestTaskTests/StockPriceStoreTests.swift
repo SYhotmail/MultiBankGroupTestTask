@@ -86,6 +86,16 @@ struct StockPriceStoreTests {
         #expect(feed.stopCount == 0)
     }
 
+    @Test func appLifecycleSuspendsAndResumesTheFeed() {
+        let store = makeStore()
+
+        store.appDidEnterBackground()
+        store.appDidBecomeActive()
+
+        #expect(feed.suspendCount == 1)
+        #expect(feed.resumeCount == 1)
+    }
+
     @Test func observeFeedAppliesEventsInOrder() async {
         let store = makeStore()
         feed.continuation.yield(.connectionChanged(.connected))

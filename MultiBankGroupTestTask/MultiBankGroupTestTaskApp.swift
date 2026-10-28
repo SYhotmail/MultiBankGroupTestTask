@@ -10,12 +10,20 @@ import SwiftUI
 @main
 struct MultiBankGroupTestTaskApp: App {
     @State private var store = StockPriceStore.live
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             StockSymbolsNavigationStackView()
                 .environment(store)
                 .task { await store.observeFeed() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background: store.appDidEnterBackground()
+            case .active: store.appDidBecomeActive()
+            default: break
+            }
         }
     }
 }

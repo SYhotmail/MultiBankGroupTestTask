@@ -56,6 +56,16 @@ final class StockPriceStore {
         }
     }
 
+    /// The app moved to the background; sockets don't survive suspension, so drop it cleanly.
+    func appDidEnterBackground() {
+        feed.suspend()
+    }
+
+    /// The app is active again; reconnects if the feed was running before going to the background.
+    func appDidBecomeActive() {
+        feed.resume()
+    }
+
     /// Applies feed events until the feed's stream ends. Run once for the store's lifetime.
     func observeFeed() async {
         for await event in feed.events {

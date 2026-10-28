@@ -33,9 +33,12 @@ final class EchoWebSocketConnection: WebSocketConnection {
     var connectError: Error?
     /// When set, `receive()` returns this instead of the echo.
     var replyOverride: String?
+    /// When set, `receive()` never answers; it only fails once the socket is closed.
+    var isSilent = false
     private(set) var sentMessages: [String] = []
     private(set) var isClosed = false
     private var pending: [String] = []
+    private var silentReceive: CheckedContinuation<String, Error>?
 
     func connect() async throws {
         if let connectError { throw connectError }
@@ -48,13 +51,19 @@ final class EchoWebSocketConnection: WebSocketConnection {
     }
 
     func receive() async throws -> String {
-        guard !isClosed, !pending.isEmpty else { throw TestError() }
+        guard !isClosed else { throw TestError() }
+        if isSilent {
+            return try await withCheckedThrowingContinuation { silentReceive = $0 }
+        }
+        guard !pending.isEmpty else { throw TestError() }
         let echo = pending.removeFirst()
         return replyOverride ?? echo
     }
 
     func close() {
         isClosed = true
+        silentReceive?.resume(throwing: TestError())
+        silentReceive = nil
     }
 }
 
@@ -64,6 +73,8 @@ final class FakePriceFeed: PriceFeed {
     let continuation: AsyncStream<PriceFeedEvent>.Continuation
     private(set) var startCount = 0
     private(set) var stopCount = 0
+    private(set) var suspendCount = 0
+    private(set) var resumeCount = 0
 
     init() {
         (events, continuation) = AsyncStream.makeStream()
@@ -71,6 +82,8 @@ final class FakePriceFeed: PriceFeed {
 
     func start() { startCount += 1 }
     func stop() { stopCount += 1 }
+    func suspend() { suspendCount += 1 }
+    func resume() { resumeCount += 1 }
 }
 
 extension StockSymbol {
