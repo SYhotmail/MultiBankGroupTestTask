@@ -9,9 +9,25 @@ import SwiftUI
 
 @main
 struct MultiBankGroupTestTaskApp: App {
+    @State private var store = StockPriceStore.live
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            StockSymbolsNavigationStackView()
+                .environment(store)
+                .task { await store.observeFeed() }
         }
     }
+}
+
+extension StockPriceStore {
+    private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
+
+    /// Composition root: the catalog symbols fed by the Postman echo WebSocket.
+    static var live: StockPriceStore {
+        StockPriceStore(symbols: StockSymbol.catalog, feed: WebSocketPriceFeed(url: priceFeedURL, symbols: StockSymbol.catalog))
+    }
+
+    /// Previews use the live wiring; the feed stays idle until Start is tapped.
+    static var preview: StockPriceStore { live }
 }
