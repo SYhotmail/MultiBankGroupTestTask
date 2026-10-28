@@ -1,0 +1,655 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "About" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نبذة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über"
+          }
+        }
+      }
+    },
+    "Connected" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "متصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbunden"
+          }
+        }
+      }
+    },
+    "Connecting" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ الاتصال"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden …"
+          }
+        }
+      }
+    },
+    "Designs CPUs, GPUs and adaptive chips for PCs, consoles and data centers." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم المعالجات المركزية ووحدات معالجة الرسومات والرقائق التكيفية للحواسيب ومنصات الألعاب ومراكز البيانات."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt CPUs, GPUs und adaptive Chips für PCs, Spielkonsolen und Rechenzentren."
+          }
+        }
+      },
+      "comment" : "Description of AMD on the symbol detail screen."
+    },
+    "Designs GPUs and accelerated computing platforms that power gaming, data centers and AI workloads." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم وحدات معالجة الرسومات ومنصات الحوسبة المسرّعة التي تشغّل الألعاب ومراكز البيانات وأعباء الذكاء الاصطناعي."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt GPUs und Plattformen für beschleunigtes Rechnen für Gaming, Rechenzentren und KI-Anwendungen."
+          }
+        }
+      },
+      "comment" : "Description of NVDA on the symbol detail screen."
+    },
+    "Designs and manufactures processors and offers foundry services for third-party chip designers." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم المعالجات وتصنّعها، وتقدّم خدمات التصنيع لمصمّمي الرقائق من جهات أخرى."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt und fertigt Prozessoren und bietet Foundry-Dienste für externe Chipentwickler an."
+          }
+        }
+      },
+      "comment" : "Description of INTC on the symbol detail screen."
+    },
+    "Designs and sells iPhone, Mac, iPad, wearables and a growing portfolio of services such as the App Store, iCloud and Apple Music." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم وتبيع iPhone وMac وiPad والأجهزة القابلة للارتداء ومجموعة متنامية من الخدمات مثل App Store وiCloud وApple Music."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt und verkauft iPhone, Mac, iPad, Wearables und ein wachsendes Angebot an Diensten wie App Store, iCloud und Apple Music."
+          }
+        }
+      },
+      "comment" : "Description of AAPL on the symbol detail screen."
+    },
+    "Designs semiconductors for networking and storage, and sells infrastructure software." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم أشباه الموصلات للشبكات والتخزين، وتبيع برمجيات البنية التحتية."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt Halbleiter für Netzwerke und Speicher und verkauft Infrastruktursoftware."
+          }
+        }
+      },
+      "comment" : "Description of AVGO on the symbol detail screen."
+    },
+    "Designs wireless and mobile chipsets and licenses foundational cellular technology." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصمّم شرائح الاتصالات اللاسلكية والأجهزة المحمولة وترخّص تقنيات الاتصالات الخلوية الأساسية."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt Chipsätze für Mobilgeräte und Funk und lizenziert grundlegende Mobilfunktechnologie."
+          }
+        }
+      },
+      "comment" : "Description of QCOM on the symbol detail screen."
+    },
+    "Develops Windows, Office and the Azure cloud platform, and owns LinkedIn, GitHub and Xbox." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تطوّر Windows وOffice ومنصة Azure السحابية، وتملك LinkedIn وGitHub وXbox."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt Windows, Office und die Cloud-Plattform Azure und besitzt LinkedIn, GitHub und Xbox."
+          }
+        }
+      },
+      "comment" : "Description of MSFT on the symbol detail screen."
+    },
+    "Disconnected" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غير متصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getrennt"
+          }
+        }
+      }
+    },
+    "Entertainment company spanning studios, theme parks, ESPN and the Disney+ streaming service." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شركة ترفيه تضم استوديوهات أفلام ومدن ملاهٍ وESPN وخدمة البث Disney+."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltungskonzern mit Filmstudios, Freizeitparks, ESPN und dem Streamingdienst Disney+."
+          }
+        }
+      },
+      "comment" : "Description of DIS on the symbol detail screen."
+    },
+    "Global payments technology company connecting consumers, merchants and banks." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شركة عالمية لتقنيات الدفع تربط المستهلكين والتجار والبنوك."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Globales Zahlungstechnologieunternehmen, das Verbraucher, Händler und Banken verbindet."
+          }
+        }
+      },
+      "comment" : "Description of MA on the symbol detail screen."
+    },
+    "Global subscription streaming service for films, series and games." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خدمة بث عالمية بالاشتراك للأفلام والمسلسلات والألعاب."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weltweiter Abo-Streamingdienst für Filme, Serien und Spiele."
+          }
+        }
+      },
+      "comment" : "Description of NFLX on the symbol detail screen."
+    },
+    "Leading provider of cloud-based customer relationship management software." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مزوّد رائد لبرمجيات إدارة علاقات العملاء المعتمدة على السحابة."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Führender Anbieter cloudbasierter Software für das Kundenbeziehungsmanagement."
+          }
+        }
+      },
+      "comment" : "Description of CRM on the symbol detail screen."
+    },
+    "Makes creative and document software including Photoshop, Premiere Pro and Acrobat." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تطوّر برمجيات التصميم والمستندات مثل Photoshop وPremiere Pro وAcrobat."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt Kreativ- und Dokumentsoftware wie Photoshop, Premiere Pro und Acrobat."
+          }
+        }
+      },
+      "comment" : "Description of ADBE on the symbol detail screen."
+    },
+    "Manufactures electric vehicles, battery energy storage systems and solar products." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصنّع السيارات الكهربائية وأنظمة تخزين الطاقة بالبطاريات ومنتجات الطاقة الشمسية."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stellt Elektrofahrzeuge, Batteriespeichersysteme und Solarprodukte her."
+          }
+        }
+      },
+      "comment" : "Description of TSLA on the symbol detail screen."
+    },
+    "Operates Facebook, Instagram, WhatsApp and Messenger, and invests in virtual and augmented reality." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغّل Facebook وInstagram وWhatsApp وMessenger، وتستثمر في الواقع الافتراضي والمعزّز."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt Facebook, Instagram, WhatsApp und Messenger und investiert in Virtual und Augmented Reality."
+          }
+        }
+      },
+      "comment" : "Description of META on the symbol detail screen."
+    },
+    "Operates digital payment platforms including PayPal and Venmo." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغّل منصات الدفع الرقمي ومنها PayPal وVenmo."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt digitale Zahlungsplattformen wie PayPal und Venmo."
+          }
+        }
+      },
+      "comment" : "Description of PYPL on the symbol detail screen."
+    },
+    "Operates one of the world's largest electronic payment networks." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغّل إحدى أكبر شبكات المدفوعات الإلكترونية في العالم."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt eines der weltweit größten Netzwerke für elektronische Zahlungen."
+          }
+        }
+      },
+      "comment" : "Description of V on the symbol detail screen."
+    },
+    "Operates retail stores, warehouse clubs and e-commerce businesses worldwide." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تدير متاجر تجزئة ونوادي بيع بالجملة وأعمال تجارة إلكترونية حول العالم."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt weltweit Einzelhandelsgeschäfte, Großhandelsclubs und E-Commerce-Geschäfte."
+          }
+        }
+      },
+      "comment" : "Description of WMT on the symbol detail screen."
+    },
+    "Parent company of Google, operating Search, YouTube, Android, Google Cloud and the Waymo autonomous driving unit." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الشركة الأم لـ Google، وتشغّل محرك البحث وYouTube وAndroid وGoogle Cloud ووحدة القيادة الذاتية Waymo."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muttergesellschaft von Google mit Suche, YouTube, Android, Google Cloud und der Sparte für autonomes Fahren Waymo."
+          }
+        }
+      },
+      "comment" : "Description of GOOG on the symbol detail screen."
+    },
+    "Price" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السعر"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preis"
+          }
+        }
+      }
+    },
+    "Price Change" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تغيّر السعر"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preisänderung"
+          }
+        }
+      }
+    },
+    "Price down" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "انخفض السعر"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preis gefallen"
+          }
+        }
+      }
+    },
+    "Price unchanged" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السعر دون تغيير"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preis unverändert"
+          }
+        }
+      }
+    },
+    "Price up" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ارتفع السعر"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preis gestiegen"
+          }
+        }
+      }
+    },
+    "Produces and markets beverage brands sold in more than 200 countries." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تنتج وتسوّق علامات مشروبات تُباع في أكثر من 200 دولة."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produziert und vermarktet Getränkemarken, die in über 200 Ländern verkauft werden."
+          }
+        }
+      },
+      "comment" : "Description of KO on the symbol detail screen."
+    },
+    "Provides commerce software that lets merchants run online and in-store businesses." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تقدّم برمجيات تجارية تتيح للتجار إدارة أعمالهم عبر الإنترنت وفي المتاجر."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bietet Commerce-Software, mit der Händler ihr Online- und Ladengeschäft betreiben."
+          }
+        }
+      },
+      "comment" : "Description of SHOP on the symbol detail screen."
+    },
+    "Provides database software, enterprise applications and Oracle Cloud Infrastructure." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تقدّم برمجيات قواعد البيانات وتطبيقات المؤسسات وOracle Cloud Infrastructure."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bietet Datenbanksoftware, Unternehmensanwendungen und Oracle Cloud Infrastructure an."
+          }
+        }
+      },
+      "comment" : "Description of ORCL on the symbol detail screen."
+    },
+    "Provides hybrid cloud, consulting, AI and mainframe solutions to enterprises." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تقدّم للمؤسسات حلول السحابة الهجينة والاستشارات والذكاء الاصطناعي والحواسيب المركزية."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bietet Unternehmen Hybrid-Cloud-, Beratungs-, KI- und Mainframe-Lösungen."
+          }
+        }
+      },
+      "comment" : "Description of IBM on the symbol detail screen."
+    },
+    "Runs ride-hailing, food delivery and freight logistics marketplaces." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تدير منصات لطلب الرحلات وتوصيل الطعام وخدمات الشحن."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt Marktplätze für Fahrdienste, Essenslieferungen und Frachtlogistik."
+          }
+        }
+      },
+      "comment" : "Description of UBER on the symbol detail screen."
+    },
+    "Runs the world's largest online marketplace and Amazon Web Services, the leading cloud infrastructure provider." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تدير أكبر سوق إلكتروني في العالم وAmazon Web Services، المزوّد الرائد للبنية التحتية السحابية."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betreibt den weltgrößten Online-Marktplatz und Amazon Web Services, den führenden Anbieter von Cloud-Infrastruktur."
+          }
+        }
+      },
+      "comment" : "Description of AMZN on the symbol detail screen."
+    },
+    "Sort" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فرز"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortieren"
+          }
+        }
+      }
+    },
+    "Sort by" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فرز حسب"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortieren nach"
+          }
+        }
+      }
+    },
+    "Start" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدء"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starten"
+          }
+        }
+      }
+    },
+    "Stocks" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الأسهم"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktien"
+          }
+        }
+      }
+    },
+    "Stop" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إيقاف"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stoppen"
+          }
+        }
+      }
+    },
+    "The largest U.S. bank, offering consumer banking, investment banking and asset management." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أكبر بنك أمريكي، ويقدّم الخدمات المصرفية للأفراد والخدمات المصرفية الاستثمارية وإدارة الأصول."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die größte US-Bank mit Privatkundengeschäft, Investmentbanking und Vermögensverwaltung."
+          }
+        }
+      },
+      "comment" : "Description of JPM on the symbol detail screen."
+    }
+  },
+  "version" : "1.0"
+}
