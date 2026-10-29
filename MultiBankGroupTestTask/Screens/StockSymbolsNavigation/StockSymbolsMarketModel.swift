@@ -1,5 +1,5 @@
 //
-//  StockMarketModel.swift
+//  StockSymbolsMarketModel.swift
 //  MultiBankGroupTestTask
 //
 //  Created by Siarhei Yakushevich on 29/10/2026.
@@ -15,7 +15,7 @@ import Observation
 /// off the main thread and results come back here with `await`.
 @MainActor
 @Observable
-final class StockMarketModel {
+final class StockSymbolsMarketModel {
     private(set) var quotes: [String: StockQuote] = [:]
     private(set) var connectionState: ConnectionState = .disconnected
 

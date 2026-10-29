@@ -28,7 +28,7 @@ struct LocalizationTests {
     private static let missing = "<missing>"
 
     private func bundle(for language: String) throws -> Bundle {
-        let appBundle = Bundle(for: StockMarketModel.self)
+        let appBundle = Bundle(for: StockSymbolsMarketModel.self)
         let path = try #require(appBundle.path(forResource: language, ofType: "lproj"), "Missing \(language).lproj")
         return try #require(Bundle(path: path))
     }

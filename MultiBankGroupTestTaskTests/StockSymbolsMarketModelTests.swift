@@ -1,5 +1,5 @@
 //
-//  StockMarketModelTests.swift
+//  StockSymbolsMarketModelTests.swift
 //  MultiBankGroupTestTaskTests
 //
 //  Created by Siarhei Yakushevich on 29/10/2026.
@@ -11,7 +11,7 @@ import Testing
 
 /// The shared live connection: live quotes, connection state and which symbols are priced.
 @MainActor
-struct StockMarketModelTests {
+struct StockSymbolsMarketModelTests {
     private let feed = FakePriceFeed()
     private let catalog: [StockSymbolPrice] = [
         .fixture("AAA", price: 10),
@@ -20,8 +20,8 @@ struct StockMarketModelTests {
     ]
 
     /// A model pricing `catalog`.
-    private func makeModel() async -> StockMarketModel {
-        let model = StockMarketModel(feed: feed)
+    private func makeModel() async -> StockSymbolsMarketModel {
+        let model = StockSymbolsMarketModel(feed: feed)
         await model.track(catalog)
         return model
     }
@@ -47,7 +47,7 @@ struct StockMarketModelTests {
     }
 
     @Test func duplicateTickersKeepTheFirstOccurrence() async {
-        let model = StockMarketModel(feed: feed)
+        let model = StockSymbolsMarketModel(feed: feed)
 
         await model.track([.fixture("AAA", price: 1), .fixture("AAA", price: 2)])
 
