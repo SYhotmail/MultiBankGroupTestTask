@@ -95,6 +95,36 @@ struct StockSymbolsListViewModelTests {
         #expect(fixture.list.rows.first { $0.id == "AAA" }?.quote == StockQuote(price: 12, change: 2, updatedAt: .fixture))
     }
 
+    @Test func rowsFollowEachInputAfterBeingRead() async {
+        let fixture = Fixture()
+        await fixture.load()
+        #expect(fixture.list.rows.map(\.id) == ["BBB", "CCC", "AAA"])
+
+        fixture.list.sortOrder = .priceChange
+        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture)]))
+        #expect(fixture.list.rows.map(\.id) == ["AAA", "BBB", "CCC"])
+
+        fixture.list.sortOrder = .price
+        #expect(fixture.list.rows.map(\.id) == ["BBB", "CCC", "AAA"])
+
+        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 40, timestamp: .fixture)]))
+        #expect(fixture.list.rows.map(\.id) == ["AAA", "BBB", "CCC"])
+
+        await fixture.list.remove(ticker: "BBB")
+        #expect(fixture.list.rows.map(\.id) == ["AAA", "CCC"])
+    }
+
+    @Test func unchangedRowsAreNotRebuilt() async {
+        let fixture = Fixture()
+        await fixture.load()
+
+        let first = fixture.list.rows
+        let second = fixture.list.rows
+
+        // The same cached array: both copies share one buffer. A rebuild would allocate a new one.
+        #expect(first.withUnsafeBufferPointer(\.baseAddress) == second.withUnsafeBufferPointer(\.baseAddress))
+    }
+
     @Test func loadIfNeededLoadsOnlyOnce() async {
         let fixture = Fixture()
 
