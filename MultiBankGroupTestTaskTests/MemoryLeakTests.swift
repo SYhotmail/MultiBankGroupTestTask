@@ -23,7 +23,7 @@ struct MemoryLeakTests {
         do {
             let feed = FakePriceFeed()
             let provider = FakeStockSymbolsProvider(result: .success([.fixture("AAA", price: 10)]))
-            let navigation = StockSymbolsNavigationViewModel(provider: provider, feed: feed)
+            let navigation = StockSymbolsNavigationViewModel(provider: provider, feed: feed, logger: .empty)
 
             // Use the graph the way the app does before letting it go.
             await navigation.listViewModel.loadIfNeeded()

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 import Synchronization
 @testable import MultiBankGroupTestTask
 
@@ -180,6 +181,12 @@ func eventually(timeout: Duration = .seconds(2), _ condition: () async -> Bool) 
         try? await Task.sleep(for: .milliseconds(5))
     }
     return await condition()
+}
+
+extension Logger {
+    /// Discards everything: tests assert on state, not log output. Built on `OSLog.disabled` because
+    /// the SDK's `Logger.disabled` is missing from the older OS versions the tests also run on.
+    static let empty = Logger(OSLog.disabled)
 }
 
 extension Date {
