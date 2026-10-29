@@ -114,11 +114,11 @@ Views only render what their view model exposes and forward user actions to it. 
 ```
 MultiBankGroupTestTask/
 ├── MultiBankGroupTestTaskApp.swift      # Composition root
-├── Models/                              # StockMarketModel, StockSymbol, StockSymbolPrice (+ catalog), StockQuote, PriceUpdate, ConnectionState
+├── Models/                              # StockMarketModel, StockSymbol, StockSymbolPrice, StockQuote, PriceUpdate, ConnectionState
 ├── Services/
 │   ├── Network/WebSocketConnection.swift
-│   ├── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator
-│   └── Symbols/StockSymbolsProvider.swift, BundledStockSymbolsProvider.swift
+│   ├── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
+│   └── Symbols/                         # StockSymbolsProvider, BundledStockSymbolsProvider, StockSymbolPrice catalog
 ├── Screens/
 │   ├── StockSymbolsNavigation/          # Root view + view model: NavigationStack, alerts
 │   ├── StockSymbolsList/                # List view + view model
