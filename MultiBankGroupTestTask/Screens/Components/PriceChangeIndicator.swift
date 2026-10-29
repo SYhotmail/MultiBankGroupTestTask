@@ -54,8 +54,8 @@ private extension PriceDirection {
 
 #Preview {
     VStack {
-        PriceChangeIndicator(quote: StockQuote(price: 10, change: 1.25))
-        PriceChangeIndicator(quote: StockQuote(price: 10, change: -0.5))
-        PriceChangeIndicator(quote: StockQuote(price: 10))
+        PriceChangeIndicator(quote: StockQuote(price: 10, change: 1.25, updatedAt: .now))
+        PriceChangeIndicator(quote: StockQuote(price: 10, change: -0.5, updatedAt: .now))
+        PriceChangeIndicator(quote: StockQuote(price: 10, updatedAt: .now))
     }
 }

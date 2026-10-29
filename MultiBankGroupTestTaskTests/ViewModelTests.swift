@@ -13,7 +13,7 @@ import Testing
 /// tested against the same model the app uses.
 @MainActor
 private struct Fixture {
-    let symbols: [StockSymbol] = [
+    let catalog: [StockSymbolPrice] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
         .fixture("CCC", price: 20),
@@ -23,7 +23,7 @@ private struct Fixture {
     let market: StockMarketModel
 
     init() {
-        repository = FakeSymbolsRepository(result: .success(symbols))
+        repository = FakeSymbolsRepository(result: .success(catalog))
         market = StockMarketModel(repository: repository, feed: feed)
     }
 
@@ -84,7 +84,7 @@ struct StockSymbolsListViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
-        await fixture.repository.setResult(.success([fixture.symbols[0]]))
+        await fixture.repository.setResult(.success([fixture.catalog[0]]))
 
         await viewModel.refresh()
 
@@ -109,18 +109,29 @@ struct StockSymbolDetailViewModelTests {
     @Test func quoteFollowsLiveUpdates() async {
         let fixture = Fixture()
         await fixture.load()
-        let viewModel = StockSymbolDetailViewModel(symbol: fixture.symbols[1], market: fixture.market)
-        #expect(viewModel.quote == StockQuote(price: 30))
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
+        #expect(viewModel.quote == StockQuote(price: 30, updatedAt: .referenceFixture))
 
         fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 27, timestamp: .fixture)]))
 
         #expect(viewModel.quote == StockQuote(price: 27, change: -3, updatedAt: .fixture))
     }
 
+    @Test func quoteIsNilOnceARefreshRemovesTheSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
+        await fixture.repository.setResult(.success([fixture.catalog[0]]))
+
+        await fixture.market.loadSymbols()
+
+        #expect(viewModel.quote == nil)
+    }
+
     @Test func toggleStopsARunningFeed() async {
         let fixture = Fixture()
         fixture.market.apply(.connectionChanged(.connected))
-        let viewModel = StockSymbolDetailViewModel(symbol: fixture.symbols[0], market: fixture.market)
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[0].symbol, market: fixture.market)
 
         await viewModel.toggleFeed()
 
@@ -156,12 +167,12 @@ struct StockSymbolsNavigationViewModelTests {
         await fixture.repository.setResult(.failure(TestError()))
         await fixture.load()
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        await fixture.repository.setResult(.success(fixture.symbols))
+        await fixture.repository.setResult(.success(fixture.catalog))
 
         await viewModel.retry(.symbolsUnavailable)
 
         #expect(viewModel.alert == nil)
-        #expect(fixture.market.symbols == fixture.symbols)
+        #expect(fixture.market.symbols == fixture.catalog.map(\.symbol))
     }
 
     @Test func retryingAConnectionIssueReconnects() async {
@@ -179,11 +190,11 @@ struct StockSymbolsNavigationViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        let detail = viewModel.detailViewModel(for: fixture.symbols[0])
+        let detail = viewModel.detailViewModel(for: fixture.catalog[0].symbol)
 
         fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 9, timestamp: .fixture)]))
 
-        #expect(detail.quote.price == 9)
+        #expect(detail.quote?.price == 9)
         #expect(viewModel.listViewModel.rows.first { $0.id == "AAA" }?.quote.price == 9)
     }
 }

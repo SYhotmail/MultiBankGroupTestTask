@@ -10,10 +10,10 @@ import Testing
 @testable import MultiBankGroupTestTask
 
 struct PriceUpdateGeneratorTests {
-    private let symbols = StockSymbol.catalog
+    private let symbols = StockSymbolPrice.catalog
 
     private func makeGenerator(seed: UInt64) -> PriceUpdateGenerator {
-        PriceUpdateGenerator(symbols: symbols, maxChangeRatio: 0.02, maxUpdatesPerBatch: 5, rng: SeededRandomNumberGenerator(seed: seed))
+        PriceUpdateGenerator(symbolPrices: symbols, maxChangeRatio: 0.02, maxUpdatesPerBatch: 5, rng: SeededRandomNumberGenerator(seed: seed))
     }
 
     @Test func sameSeedProducesSameSequence() {
@@ -27,7 +27,7 @@ struct PriceUpdateGeneratorTests {
     @Test(arguments: [1, 7, 99] as [UInt64])
     func batchesUpdateDistinctKnownSymbols(seed: UInt64) {
         var generator = makeGenerator(seed: seed)
-        let tickers = Set(symbols.map(\.ticker))
+        let tickers = Set(symbols.map(\.symbol.ticker))
         for _ in 0..<50 {
             let batch = generator.next(at: .fixture)
             #expect((1...5).contains(batch.count))
@@ -38,7 +38,7 @@ struct PriceUpdateGeneratorTests {
 
     @Test func pricesStayPositiveAndMoveWithinTheConfiguredRatio() {
         var generator = makeGenerator(seed: 3)
-        var last = Dictionary(uniqueKeysWithValues: symbols.map { ($0.ticker, $0.referencePrice) })
+        var last = Dictionary(uniqueKeysWithValues: symbols.map { ($0.symbol.ticker, $0.price) })
         for _ in 0..<200 {
             for update in generator.next(at: .fixture) {
                 let previous = last[update.symbol]!
@@ -53,7 +53,7 @@ struct PriceUpdateGeneratorTests {
     }
 
     @Test func trackKeepsCurrentPricesAndAddsNewSymbolsAtReference() {
-        var generator = PriceUpdateGenerator(symbols: [.fixture("AAA", price: 10)], maxUpdatesPerBatch: 1, rng: SeededRandomNumberGenerator(seed: 5))
+        var generator = PriceUpdateGenerator(symbolPrices: [.fixture("AAA", price: 10)], maxUpdatesPerBatch: 1, rng: SeededRandomNumberGenerator(seed: 5))
         let moved = generator.next(at: .fixture)[0].price
 
         generator.track([.fixture("AAA", price: 10), .fixture("BBB", price: 50)])
@@ -76,7 +76,7 @@ struct PriceUpdateGeneratorTests {
     }
 
     @Test func emptySymbolListProducesNoUpdates() {
-        var generator = PriceUpdateGenerator(symbols: [], rng: SeededRandomNumberGenerator(seed: 1))
+        var generator = PriceUpdateGenerator(symbolPrices: [], rng: SeededRandomNumberGenerator(seed: 1))
         #expect(generator.next(at: .fixture).isEmpty)
     }
 }

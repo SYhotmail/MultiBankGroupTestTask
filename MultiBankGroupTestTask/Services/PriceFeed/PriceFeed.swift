@@ -29,8 +29,8 @@ protocol PriceFeed: Actor {
     func resume()
     /// Reconnects immediately if the feed is running, skipping any backoff wait.
     func reconnect()
-    /// Generates updates for these symbols from now on.
-    func track(_ symbols: [StockSymbol])
+    /// Generates updates for these symbols from now on, starting from the given prices.
+    func track(_ symbolPrices: [StockSymbolPrice])
 }
 
 /// Delay before reconnecting: exponential growth from `initialDelay`, capped at `maxDelay`.
@@ -84,7 +84,7 @@ actor WebSocketPriceFeed: PriceFeed {
     }
 
     init(url: URL) {
-        self.init(generator: PriceUpdateGenerator(symbols: [])) {
+        self.init(generator: PriceUpdateGenerator(symbolPrices: [])) {
             URLSessionWebSocketConnection(url: url)
         }
     }
@@ -115,8 +115,8 @@ actor WebSocketPriceFeed: PriceFeed {
         startSessionIfNeeded()
     }
 
-    func track(_ symbols: [StockSymbol]) {
-        generator.track(symbols)
+    func track(_ symbolPrices: [StockSymbolPrice]) {
+        generator.track(symbolPrices)
     }
 
     private func startSessionIfNeeded() {

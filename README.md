@@ -100,10 +100,11 @@ Views only render what their view model exposes and forward user actions to it. 
 - **Computed view model properties.** No state is copied into view models, so there is nothing to keep in sync and nothing to go stale.
 - **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would close an open sort menu).
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `SymbolsRepository`), where tests need to substitute real network and data access.
-- **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services are actors (`WebSocketPriceFeed`, `BundledSymbolsRepository`), so the WebSocket session, price generation and JSON coding run on their own executors, never the main thread. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
+- **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services are actors (`WebSocketPriceFeed`, `BundledSymbolsRepository`), so the WebSocket session, price generation and JSON coding run on their own executors, never the main thread. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockSymbolPrice`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
 - **Typed wire format.** Every WebSocket message is a JSON envelope with a type discriminator and a payload, e.g. `{"type":"prices","payload":[{"symbol":"AAPL","price":229.1,"timestamp":"2027-01-15T08:00:00Z"}]}`. `FeedMessage` is a `Codable` enum with a hand-written coding implementation (Swift's synthesized enum coding produces a shape servers don't use); unknown types decode to `.unknown` and are skipped, so a server can add message types without breaking older apps. `JSONEncoder`/`JSONDecoder` aren't `Sendable`, so the codec lives inside the feed actor.
 - **Trust boundary on the echo.** Echoed messages that fail to decode are dropped; updates for unknown tickers are ignored; duplicate tickers from the repository are de-duplicated.
+- **Identity apart from price.** `StockSymbol` is what a symbol is (ticker, name, description). `StockSymbolPrice` is a symbol's price at a point in time — the repository returns these (the bundled catalog is a snapshot as of 28 Oct 2026 close), the feed starts its random walk from them, and they are the quote shown until the first live update. `StockQuote` is the live price with its change and `updatedAt`.
 - **Price change** is the change since the symbol's previous update; the indicator and the Price Change sort both use it.
 
 ## Project structure
@@ -111,7 +112,7 @@ Views only render what their view model exposes and forward user actions to it. 
 ```
 MultiBankGroupTestTask/
 ├── MultiBankGroupTestTaskApp.swift      # Composition root
-├── Models/                              # StockMarketModel, StockSymbol (+ catalog), StockQuote, PriceUpdate, ConnectionState
+├── Models/                              # StockMarketModel, StockSymbol, StockSymbolPrice (+ catalog), StockQuote, PriceUpdate, ConnectionState
 ├── Services/
 │   ├── Network/WebSocketConnection.swift
 │   ├── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator

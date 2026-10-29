@@ -18,10 +18,10 @@ nonisolated enum PriceDirection: Sendable {
 nonisolated struct StockQuote: Equatable, Sendable {
     let price: Decimal
     let change: Decimal
-    /// When the price last changed; `nil` while it is still the reference price.
-    let updatedAt: Date?
+    /// When this price was observed: the reference price's timestamp until the first live update.
+    let updatedAt: Date
 
-    init(price: Decimal, change: Decimal = 0, updatedAt: Date? = nil) {
+    init(price: Decimal, change: Decimal = 0, updatedAt: Date) {
         self.price = price
         self.change = change
         self.updatedAt = updatedAt

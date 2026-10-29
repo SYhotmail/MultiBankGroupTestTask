@@ -38,8 +38,9 @@ final class StockMarketModel {
 
     var isFeedRunning: Bool { connectionState != .disconnected }
 
-    func quote(for symbol: StockSymbol) -> StockQuote {
-        quotes[symbol.ticker] ?? StockQuote(price: symbol.referencePrice)
+    /// The live quote, or `nil` for a symbol the model doesn't track (e.g. removed by a refresh).
+    func quote(for symbol: StockSymbol) -> StockQuote? {
+        quotes[symbol.ticker]
     }
 
     /// Fetches the symbol list. Quotes of symbols that remain are kept; a failure raises an issue.
@@ -110,12 +111,16 @@ final class StockMarketModel {
         }
     }
 
-    private func replaceSymbols(with fetched: [StockSymbol]) async {
+    private func replaceSymbols(with fetched: [StockSymbolPrice]) async {
         // Remote data may repeat a ticker; keep the first so tickers stay unique identifiers.
         var seen = Set<String>()
-        let unique = fetched.filter { seen.insert($0.ticker).inserted }
-        quotes = Dictionary(uniqueKeysWithValues: unique.map { ($0.ticker, quote(for: $0)) })
-        symbols = unique
+        let unique = fetched.filter { seen.insert($0.symbol.ticker).inserted }
+        // Symbols that remain keep their live quote; new ones start from the fetched price.
+        quotes = Dictionary(uniqueKeysWithValues: unique.map { symbolPrice in
+            let ticker = symbolPrice.symbol.ticker
+            return (ticker, quotes[ticker] ?? StockQuote(price: symbolPrice.price, updatedAt: symbolPrice.timestamp))
+        })
+        symbols = unique.map(\.symbol)
         await feed.track(unique)
     }
 }

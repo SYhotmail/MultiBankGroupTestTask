@@ -17,7 +17,7 @@ struct PriceUpdateGenerator: Sendable {
     private var rng: any RandomNumberGenerator & Sendable
 
     init(
-        symbols: [StockSymbol],
+        symbolPrices: [StockSymbolPrice],
         maxChangeRatio: Double = 0.02,
         maxUpdatesPerBatch: Int = 5,
         rng: any RandomNumberGenerator & Sendable = SystemRandomNumberGenerator()
@@ -25,17 +25,18 @@ struct PriceUpdateGenerator: Sendable {
         self.maxChangeRatio = maxChangeRatio
         self.maxUpdatesPerBatch = max(1, maxUpdatesPerBatch)
         self.rng = rng
-        track(symbols)
+        track(symbolPrices)
     }
 
     /// Switches to a new symbol list. Symbols already tracked keep their current price; new ones
-    /// start at their reference price. Duplicate tickers keep the first occurrence.
-    mutating func track(_ symbols: [StockSymbol]) {
+    /// start at the given price. Duplicate tickers keep the first occurrence.
+    mutating func track(_ symbolPrices: [StockSymbolPrice]) {
         var newPrices: [String: Decimal] = [:]
-        tickers = symbols.compactMap { symbol in
-            guard newPrices[symbol.ticker] == nil else { return nil }
-            newPrices[symbol.ticker] = prices[symbol.ticker] ?? symbol.referencePrice
-            return symbol.ticker
+        tickers = symbolPrices.compactMap { symbolPrice in
+            let ticker = symbolPrice.symbol.ticker
+            guard newPrices[ticker] == nil else { return nil }
+            newPrices[ticker] = prices[ticker] ?? symbolPrice.price
+            return ticker
         }
         prices = newPrices
     }

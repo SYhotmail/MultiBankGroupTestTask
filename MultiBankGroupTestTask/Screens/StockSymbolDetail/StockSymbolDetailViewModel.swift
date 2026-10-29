@@ -22,7 +22,8 @@ final class StockSymbolDetailViewModel {
         self.market = market
     }
 
-    var quote: StockQuote { market.quote(for: symbol) }
+    /// `nil` once the symbol is no longer tracked, e.g. a refresh removed it while this screen was open.
+    var quote: StockQuote? { market.quote(for: symbol) }
 
     var connectionState: ConnectionState { market.connectionState }
 
