@@ -36,7 +36,7 @@ final class StockSymbolsListViewModel {
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
     var rows: [Row] {
         market.symbols
-            .map { Row(symbol: $0, quote: market.quote(for: $0)) }
+            .compactMap { symbol in market.quote(for: symbol).map { Row(symbol: symbol, quote: $0) } }
             .sorted { lhs, rhs in
                 let (lhsValue, rhsValue) = switch sortOrder {
                 case .price: (lhs.quote.price, rhs.quote.price)

@@ -20,15 +20,15 @@ struct StockSymbolDetailView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
 
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    PriceText(price: quote.price)
-                        .font(.largeTitle.bold())
-                    PriceChangeIndicator(quote: quote)
-                        .font(.title3)
-                }
+                if let quote {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        PriceText(price: quote.price)
+                            .font(.largeTitle.bold())
+                        PriceChangeIndicator(quote: quote)
+                            .font(.title3)
+                    }
 
-                if let updatedAt = quote.updatedAt {
-                    Text("Updated \(updatedAt, format: .dateTime.hour().minute().second())")
+                    Text("Updated \(quote.updatedAt, format: Self.updateTimeFormat(for: quote.updatedAt))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -45,10 +45,17 @@ struct StockSymbolDetailView: View {
         .navigationTitle(symbol.ticker)
         .toolbar { FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed) }
     }
+
+    /// Time only for today's updates; older ones (e.g. a previous close) also show the date.
+    private static func updateTimeFormat(for date: Date) -> Date.FormatStyle {
+        Calendar.current.isDateInToday(date)
+            ? .dateTime.hour().minute().second()
+            : .dateTime.day().month().hour().minute()
+    }
 }
 
 #Preview {
     NavigationStack {
-        StockSymbolDetailView(viewModel: StockSymbolDetailViewModel(symbol: StockSymbol.catalog[0], market: .preview))
+        StockSymbolDetailView(viewModel: StockSymbolDetailViewModel(symbol: StockSymbolPrice.catalog[0].symbol, market: .preview))
     }
 }

@@ -45,7 +45,7 @@ struct LocalizationTests {
     func symbolSummariesAreTranslated(language: String) throws {
         let bundle = try bundle(for: language)
         // Tests run in English, so `summary` holds the source-language key.
-        for symbol in StockSymbol.catalog {
+        for symbol in StockSymbolPrice.catalog.map(\.symbol) {
             #expect(bundle.localizedString(forKey: symbol.summary, value: Self.missing, table: nil) != Self.missing, "\(symbol.ticker) in \(language)")
         }
     }

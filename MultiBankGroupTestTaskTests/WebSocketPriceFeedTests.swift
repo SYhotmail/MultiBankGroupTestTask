@@ -19,7 +19,7 @@ struct WebSocketPriceFeedTests {
         configure: @escaping @Sendable (EchoWebSocketConnection, Int) -> Void = { _, _ in }
     ) -> (WebSocketPriceFeed, () -> [EchoWebSocketConnection]) {
         let log = ConnectionLog()
-        let generator = PriceUpdateGenerator(symbols: StockSymbol.catalog, rng: SeededRandomNumberGenerator(seed: 1))
+        let generator = PriceUpdateGenerator(symbolPrices: StockSymbolPrice.catalog, rng: SeededRandomNumberGenerator(seed: 1))
         let feed = WebSocketPriceFeed(
             generator: generator,
             updateInterval: .milliseconds(5),

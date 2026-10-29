@@ -128,7 +128,7 @@ actor FakePriceFeed: PriceFeed {
     private(set) var suspendCount = 0
     private(set) var resumeCount = 0
     private(set) var reconnectCount = 0
-    private(set) var trackedSymbols: [StockSymbol] = []
+    private(set) var trackedSymbols: [StockSymbolPrice] = []
 
     init() {
         (events, continuation) = AsyncStream.makeStream()
@@ -139,21 +139,21 @@ actor FakePriceFeed: PriceFeed {
     func suspend() { suspendCount += 1 }
     func resume() { resumeCount += 1 }
     func reconnect() { reconnectCount += 1 }
-    func track(_ symbols: [StockSymbol]) { trackedSymbols = symbols }
+    func track(_ symbolPrices: [StockSymbolPrice]) { trackedSymbols = symbolPrices }
 }
 
 actor FakeSymbolsRepository: SymbolsRepository {
-    private var result: Result<[StockSymbol], any Error>
+    private var result: Result<[StockSymbolPrice], any Error>
 
-    init(result: Result<[StockSymbol], any Error> = .success([])) {
+    init(result: Result<[StockSymbolPrice], any Error> = .success([])) {
         self.result = result
     }
 
-    func setResult(_ result: Result<[StockSymbol], any Error>) {
+    func setResult(_ result: Result<[StockSymbolPrice], any Error>) {
         self.result = result
     }
 
-    func fetchSymbols() async throws -> [StockSymbol] {
+    func fetchSymbols() async throws -> [StockSymbolPrice] {
         try result.get()
     }
 }
@@ -161,10 +161,18 @@ actor FakeSymbolsRepository: SymbolsRepository {
 extension Date {
     /// Fixed moment for deterministic timestamps; whole seconds, so it survives an ISO 8601 round trip.
     static let fixture = Date(timeIntervalSince1970: 1_800_000_000)
+    /// When fixture reference prices were observed: a day before live updates.
+    static let referenceFixture = fixture.addingTimeInterval(-86_400)
 }
 
 extension StockSymbol {
-    static func fixture(_ ticker: String, price: Decimal) -> StockSymbol {
-        StockSymbol(ticker: ticker, name: "\(ticker) Inc.", summary: "", referencePrice: price)
+    static func fixture(_ ticker: String) -> StockSymbol {
+        StockSymbol(ticker: ticker, name: "\(ticker) Inc.", summary: "")
+    }
+}
+
+extension StockSymbolPrice {
+    static func fixture(_ ticker: String, price: Decimal, at timestamp: Date = .referenceFixture) -> StockSymbolPrice {
+        StockSymbolPrice(symbol: .fixture(ticker), price: price, timestamp: timestamp)
     }
 }
