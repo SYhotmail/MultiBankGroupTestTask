@@ -8,23 +8,23 @@
 import SwiftUI
 
 struct StockSymbolsNavigationStackView: View {
-    @Environment(AppStore.self) private var store
+    let viewModel: StockSymbolsNavigationViewModel
 
     var body: some View {
         NavigationStack {
-            StockSymbolsListView()
+            StockSymbolsListView(viewModel: viewModel.listViewModel)
                 .navigationDestination(for: StockSymbol.self) { symbol in
-                    StockSymbolDetailView(symbol: symbol)
+                    StockSymbolDetailView(viewModel: viewModel.detailViewModel(for: symbol))
                 }
         }
         // Attached at the root so alerts show on whichever screen is visible.
         .alert(
-            store.alert.map { Text($0.title) } ?? Text(verbatim: ""),
-            isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.send(.alertDismissed) } }),
-            presenting: store.alert
+            viewModel.alert.map { Text($0.title) } ?? Text(verbatim: ""),
+            isPresented: Binding(get: { viewModel.alert != nil }, set: { if !$0 { viewModel.dismissAlert() } }),
+            presenting: viewModel.alert
         ) { alert in
             Button("Retry") {
-                store.send(.alertRetryTapped(alert))
+                Task { await viewModel.retry(alert) }
             }
             Button("OK", role: .cancel) {}
         } message: { alert in
@@ -33,7 +33,7 @@ struct StockSymbolsNavigationStackView: View {
     }
 }
 
-private extension AppState.Alert {
+private extension StockMarketModel.Issue {
     var title: LocalizedStringKey {
         switch self {
         case .symbolsUnavailable: "Couldn't Load Symbols"
@@ -50,6 +50,5 @@ private extension AppState.Alert {
 }
 
 #Preview {
-    StockSymbolsNavigationStackView()
-        .environment(AppStore.preview)
+    StockSymbolsNavigationStackView(viewModel: StockSymbolsNavigationViewModel(market: .preview))
 }

@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct StockSymbolDetailView: View {
-    @Environment(AppStore.self) private var store
-    let symbol: StockSymbol
+    let viewModel: StockSymbolDetailViewModel
 
     var body: some View {
-        let quote = store.state.quote(for: symbol)
+        let symbol = viewModel.symbol
+        let quote = viewModel.quote
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -36,13 +36,12 @@ struct StockSymbolDetailView: View {
             .padding()
         }
         .navigationTitle(symbol.ticker)
-        .toolbar { FeedToolbar(store: store) }
+        .toolbar { FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed) }
     }
 }
 
 #Preview {
     NavigationStack {
-        StockSymbolDetailView(symbol: StockSymbol.catalog[0])
+        StockSymbolDetailView(viewModel: StockSymbolDetailViewModel(symbol: StockSymbol.catalog[0], market: .preview))
     }
-    .environment(AppStore.preview)
 }
