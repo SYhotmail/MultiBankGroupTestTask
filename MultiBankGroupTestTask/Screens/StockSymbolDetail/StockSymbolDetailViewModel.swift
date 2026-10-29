@@ -10,6 +10,7 @@ import Observation
 
 /// Presentation logic for one symbol's detail screen. Reads live data from the shared model,
 /// so the price keeps updating while the screen is open.
+@MainActor
 @Observable
 final class StockSymbolDetailViewModel {
     let symbol: StockSymbol
@@ -25,7 +26,7 @@ final class StockSymbolDetailViewModel {
 
     var connectionState: ConnectionState { market.connectionState }
 
-    func toggleFeed() {
-        market.toggleFeed()
+    func toggleFeed() async {
+        await market.toggleFeed()
     }
 }

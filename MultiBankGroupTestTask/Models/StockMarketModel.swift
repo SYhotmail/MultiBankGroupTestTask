@@ -10,6 +10,10 @@ import Observation
 
 /// The Model in MVVM: live symbols, quotes and feed state shared by every screen's view model.
 /// Knows nothing about presentation (sorting, alerts, formatting).
+///
+/// Main-actor isolated because SwiftUI observes it; the feed and repository it drives are actors,
+/// so their work runs off the main thread and results come back here with `await`.
+@MainActor
 @Observable
 final class StockMarketModel {
     /// A problem the user should hear about.
@@ -43,7 +47,7 @@ final class StockMarketModel {
         isLoadingSymbols = true
         defer { isLoadingSymbols = false }
         do {
-            replaceSymbols(with: try await repository.fetchSymbols())
+            await replaceSymbols(with: try await repository.fetchSymbols())
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
         } catch {
@@ -53,20 +57,20 @@ final class StockMarketModel {
 
     /// Reconnects the running feed right away and reloads the symbol list.
     func refresh() async {
-        feed.reconnect()
+        await feed.reconnect()
         await loadSymbols()
     }
 
-    func toggleFeed() {
+    func toggleFeed() async {
         if isFeedRunning {
-            feed.stop()
+            await feed.stop()
         } else {
-            feed.start()
+            await feed.start()
         }
     }
 
-    func reconnectFeed() {
-        feed.reconnect()
+    func reconnectFeed() async {
+        await feed.reconnect()
     }
 
     func clearIssue() {
@@ -74,13 +78,13 @@ final class StockMarketModel {
     }
 
     /// The app moved to the background; sockets don't survive suspension, so drop it cleanly.
-    func appDidEnterBackground() {
-        feed.suspend()
+    func appDidEnterBackground() async {
+        await feed.suspend()
     }
 
     /// The app is active again; reconnects if the feed was running before going to the background.
-    func appDidBecomeActive() {
-        feed.resume()
+    func appDidBecomeActive() async {
+        await feed.resume()
     }
 
     /// Applies feed events until the feed's stream ends. Run once for the model's lifetime.
@@ -106,12 +110,12 @@ final class StockMarketModel {
         }
     }
 
-    private func replaceSymbols(with fetched: [StockSymbol]) {
+    private func replaceSymbols(with fetched: [StockSymbol]) async {
         // Remote data may repeat a ticker; keep the first so tickers stay unique identifiers.
         var seen = Set<String>()
         let unique = fetched.filter { seen.insert($0.ticker).inserted }
         quotes = Dictionary(uniqueKeysWithValues: unique.map { ($0.ticker, quote(for: $0)) })
         symbols = unique
-        feed.track(unique)
+        await feed.track(unique)
     }
 }

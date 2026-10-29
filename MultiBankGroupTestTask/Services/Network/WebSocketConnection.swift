@@ -8,7 +8,8 @@
 import Foundation
 
 /// Text-message WebSocket transport. Abstracted so the price feed can be tested without a network.
-protocol WebSocketConnection: AnyObject {
+/// `Sendable`: the feed's actor and its echo watchdog both use the same connection.
+protocol WebSocketConnection: AnyObject, Sendable {
     /// Opens the socket and returns once the server has answered.
     func connect() async throws
     func send(_ message: String) async throws
