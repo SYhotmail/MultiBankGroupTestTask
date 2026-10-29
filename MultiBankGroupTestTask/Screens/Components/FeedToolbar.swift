@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Connection status and Start/Stop control, shared by the list and detail screens.
 struct FeedToolbar: ToolbarContent {
-    let store: StockPriceStore
+    let store: AppStore
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -19,11 +19,10 @@ struct FeedToolbar: ToolbarContent {
         .sharedBackgroundVisibility(.hidden)
 
         ToolbarItem(placement: .primaryAction) {
-            Button(
-                store.isFeedRunning ? "Stop" : "Start",
-                systemImage: store.isFeedRunning ? "stop.fill" : "play.fill",
-                action: store.toggleFeed
-            )
+            let isRunning = store.connectionState.isActive
+            Button(isRunning ? "Stop" : "Start", systemImage: isRunning ? "stop.fill" : "play.fill") {
+                store.send(.toggleFeedTapped)
+            }
         }
     }
 }

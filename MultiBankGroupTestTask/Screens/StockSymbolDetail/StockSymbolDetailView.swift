@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct StockSymbolDetailView: View {
-    @Environment(StockPriceStore.self) private var store
+    @Environment(AppStore.self) private var store
     let symbol: StockSymbol
 
     var body: some View {
-        let quote = store.quote(for: symbol)
+        let quote = store.state.quote(for: symbol)
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -44,5 +44,5 @@ struct StockSymbolDetailView: View {
     NavigationStack {
         StockSymbolDetailView(symbol: StockSymbol.catalog[0])
     }
-    .environment(StockPriceStore.preview)
+    .environment(AppStore.preview)
 }
