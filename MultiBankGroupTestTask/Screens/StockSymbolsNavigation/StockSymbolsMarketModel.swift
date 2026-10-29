@@ -16,11 +16,15 @@ import Observation
 @MainActor
 @Observable
 final class StockSymbolsMarketModel {
-    private(set) var quotes: [String: StockQuote] = [:]
+    private(set) var quotes: [String: StockQuote] = [:] {
+        didSet { onQuotesChanged?() }
+    }
     private(set) var connectionState: ConnectionState = .disconnected
 
     /// Called once per outage with a description of the underlying error.
     @ObservationIgnored var onConnectionLost: (@MainActor (String) -> Void)?
+    /// Called after every change to `quotes`, so the list can re-sort its rows. One listener: the list.
+    @ObservationIgnored var onQuotesChanged: (@MainActor () -> Void)?
 
     private let feed: any StockSymbolPriceTracker
     /// What the feed generates prices for.
@@ -79,11 +83,14 @@ final class StockSymbolsMarketModel {
         case .connectionChanged(let state):
             connectionState = state
         case .priceUpdates(let updates):
+            // Applied to a copy and stored once, so a batch is one change, not one per update.
+            var updated = quotes
             for update in updates {
                 // Ignore symbols we do not track.
-                guard let quote = quotes[update.symbol] else { continue }
-                quotes[update.symbol] = quote.updated(to: update.price, at: update.timestamp)
+                guard let quote = updated[update.symbol] else { continue }
+                updated[update.symbol] = quote.updated(to: update.price, at: update.timestamp)
             }
+            quotes = updated
         case .connectionLost(let reason):
             onConnectionLost?(reason)
         }
