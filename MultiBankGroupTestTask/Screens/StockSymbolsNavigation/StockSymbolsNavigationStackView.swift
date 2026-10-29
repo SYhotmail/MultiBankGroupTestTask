@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct StockSymbolsNavigationStackView: View {
-    @Environment(StockPriceStore.self) private var store
+    @Environment(AppStore.self) private var store
 
     var body: some View {
         NavigationStack {
@@ -20,11 +20,11 @@ struct StockSymbolsNavigationStackView: View {
         // Attached at the root so alerts show on whichever screen is visible.
         .alert(
             store.alert.map { Text($0.title) } ?? Text(verbatim: ""),
-            isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.dismissAlert() } }),
+            isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.send(.alertDismissed) } }),
             presenting: store.alert
         ) { alert in
             Button("Retry") {
-                Task { await store.retry(alert) }
+                store.send(.alertRetryTapped(alert))
             }
             Button("OK", role: .cancel) {}
         } message: { alert in
@@ -33,7 +33,7 @@ struct StockSymbolsNavigationStackView: View {
     }
 }
 
-private extension StockPriceStore.Alert {
+private extension AppState.Alert {
     var title: LocalizedStringKey {
         switch self {
         case .symbolsUnavailable: "Couldn't Load Symbols"
@@ -51,5 +51,5 @@ private extension StockPriceStore.Alert {
 
 #Preview {
     StockSymbolsNavigationStackView()
-        .environment(StockPriceStore.preview)
+        .environment(AppStore.preview)
 }

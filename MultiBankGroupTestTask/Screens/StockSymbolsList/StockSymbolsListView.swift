@@ -8,11 +8,9 @@
 import SwiftUI
 
 struct StockSymbolsListView: View {
-    @Environment(StockPriceStore.self) private var store
+    @Environment(AppStore.self) private var store
 
     var body: some View {
-        @Bindable var store = store
-
         // Rows live in a child view so price ticks don't rebuild the toolbar (and dismiss the sort menu).
         StockSymbolsList(store: store)
             .navigationTitle("Stocks")
@@ -20,9 +18,9 @@ struct StockSymbolsListView: View {
                 FeedToolbar(store: store)
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                        Picker("Sort by", selection: $store.sortOrder) {
-                            Label("Price", systemImage: "dollarsign").tag(StockPriceStore.SortOrder.price)
-                            Label("Price Change", systemImage: "plusminus").tag(StockPriceStore.SortOrder.priceChange)
+                        Picker("Sort by", selection: Binding(get: { store.sortOrder }, set: { store.send(.sortOrderChanged($0)) })) {
+                            Label("Price", systemImage: "dollarsign").tag(AppState.SortOrder.price)
+                            Label("Price Change", systemImage: "plusminus").tag(AppState.SortOrder.priceChange)
                         }
                     }
                 }
@@ -31,17 +29,18 @@ struct StockSymbolsListView: View {
 }
 
 private struct StockSymbolsList: View {
-    let store: StockPriceStore
+    let store: AppStore
 
     var body: some View {
-        List(store.sortedSymbols) { symbol in
+        let state = store.state
+        List(state.sortedSymbols) { symbol in
             NavigationLink(value: symbol) {
-                StockSymbolRow(symbol: symbol, quote: store.quote(for: symbol))
+                StockSymbolRow(symbol: symbol, quote: state.quote(for: symbol))
             }
         }
         .listStyle(.plain)
-        .animation(.default, value: store.sortedSymbols)
-        .refreshable { await store.refresh() }
+        .animation(.default, value: state.sortedSymbols)
+        .refreshable { await store.send(.refreshRequested).value }
         .overlay {
             if store.symbols.isEmpty && store.isLoadingSymbols {
                 ProgressView()
@@ -49,7 +48,7 @@ private struct StockSymbolsList: View {
         }
         .task {
             if store.symbols.isEmpty {
-                await store.loadSymbols()
+                await store.send(.loadSymbols).value
             }
         }
     }
@@ -84,5 +83,5 @@ struct StockSymbolRow: View {
     NavigationStack {
         StockSymbolsListView()
     }
-    .environment(StockPriceStore.preview)
+    .environment(AppStore.preview)
 }

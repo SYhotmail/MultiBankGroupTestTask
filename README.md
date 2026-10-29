@@ -4,7 +4,7 @@ An iOS app that shows live price updates for 25 stock symbols. Prices travel thr
 server (`wss://ws.postman-echo.com/raw`): the app
 generates a random price update, sends it, and displays what the server echoes back.
 
-Built with SwiftUI, Swift Concurrency and the Observation framework. No third-party dependencies.
+Built with SwiftUI, Swift Concurrency and the Observation framework, using a hand-rolled Redux architecture. No third-party dependencies.
 
 ## Features
 
@@ -49,21 +49,64 @@ xcodebuild test \
 
 ## Architecture
 
+The app follows **Redux**: one immutable `AppState`, changed only by a pure `AppReducer` in response to an `AppAction`. Side effects are returned by the reducer as `AppEffect` values and performed by the `AppStore`, which turns their results back into actions.
+
 ```
-SwiftUI views ──read──▶ StockPriceStore (@Observable, single source of truth)
-                             │                    │
-                   loads symbols from        consumes events from
-                             ▼                    ▼
-                    SymbolsRepository        PriceFeed ──▶ PriceUpdateGenerator
-                                                 │
-                                                 ▼
-                                         WebSocketConnection ──▶ wss://ws.postman-echo.com/raw
+          ┌──────────── send(AppAction) ◀───────────────┐
+          ▼                                             │
+     AppStore ──▶ AppReducer.reduce(&state, action)     │
+          │            │ returns [AppEffect]            │
+          │            ▼                                │
+          │      perform effects ──▶ PriceFeed ─── PriceFeedEvent ──▶ .feed(event)
+          │                     └──▶ SymbolsRepository ── result ──▶ .symbolsLoaded / .symbolsLoadFailed
+          ▼
+  publishes state fields ──▶ SwiftUI views ── user intents ──▶ send(action)
 ```
+
+### State
+
+`AppState` is a value type and the single source of truth:
+
+| Field | Meaning |
+|---|---|
+| `symbols` | Tracked symbols, in repository order. |
+| `quotes` | Current price and change per ticker. |
+| `connectionState` | `disconnected`, `connecting` or `connected`. |
+| `isLoadingSymbols` | A symbol fetch is in flight. |
+| `alert` | `symbolsUnavailable` or `connectionLost`, if one should be shown. |
+| `sortOrder` | `price` or `priceChange`. |
+
+Derived values (`sortedSymbols`, `quote(for:)`, `isFeedRunning`) are computed from these fields, so they can't drift out of sync.
+
+### Actions
+
+| Group | Actions |
+|---|---|
+| User intents | `toggleFeedTapped`, `loadSymbols`, `refreshRequested`, `sortOrderChanged`, `alertDismissed`, `alertRetryTapped` |
+| App lifecycle | `appEnteredBackground`, `appBecameActive` |
+| Effect results | `symbolsLoaded`, `symbolsLoadFailed`, `feed(PriceFeedEvent)` — `connectionChanged`, `priceUpdates`, `connectionLost` |
+
+### Reducer
+
+`AppReducer.reduce(_ state: inout AppState, _ action: AppAction) -> [AppEffect]` is the only code that changes state. It is pure: no I/O, no clocks, no randomness — the same input always gives the same output. For example:
+
+- `toggleFeedTapped` → `[.startFeed]` or `[.stopFeed]` depending on `connectionState`.
+- `refreshRequested` → sets `isLoadingSymbols`, returns `[.reconnectFeed, .fetchSymbols]`.
+- `symbolsLoaded` → de-duplicates tickers, keeps quotes of symbols that remain, returns `[.trackSymbols]`.
+- `feed(.priceUpdates)` → computes each new quote and its change; unknown tickers are ignored.
+- `feed(.connectionLost)` → raises an alert unless one is already showing.
+
+### Effects and store
+
+`AppEffect` lists every side effect: `startFeed`, `stopFeed`, `suspendFeed`, `resumeFeed`, `reconnectFeed`, `trackSymbols`, `fetchSymbols`. `AppStore.send(_:)` reduces the action, commits the new state, then performs the effects: feed commands immediately, the symbol fetch asynchronously. It returns a `Task`, so pull-to-refresh can await the reload. `observeFeed()` turns the feed's event stream into `.feed(...)` actions.
+
+The store publishes each state field as its own observable property and writes back only fields that changed. A view therefore re-renders only when what it reads changes — a price tick doesn't rebuild the toolbar (which would close an open sort menu).
+
+### Services
 
 | Layer | Type | Responsibility |
 |---|---|---|
-| Composition root | `MultiBankGroupTestTaskApp` | Wires concrete services, forwards scene-phase changes, injects the store into the environment. |
-| State | `StockPriceStore` | Symbols, quotes, connection state, sort order and alerts. Applies feed events; exposes intents (toggle, refresh, retry). |
+| Composition root | `MultiBankGroupTestTaskApp` | Wires concrete services, sends lifecycle actions, injects the store into the environment. |
 | Feed | `WebSocketPriceFeed` (`PriceFeed`) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
 | Generation | `PriceUpdateGenerator` | Seedable random walk (±2% per tick, rounded to cents) for a random subset of tracked symbols. |
 | Transport | `WebSocketConnection` | Thin protocol over `URLSessionWebSocketTask`; swapped for an in-memory echo in tests. |
@@ -71,13 +114,14 @@ SwiftUI views ──read──▶ StockPriceStore (@Observable, single source of
 
 ### Key decisions
 
-- **One store, shared by every screen.** Both screens read the same `@Observable` store from the environment, so a price update re-renders wherever it is visible — no syncing between screens.
+- **Hand-rolled Redux instead of a framework.** The app has one feature and a handful of actions; under 300 lines of store, reducer and types (including comments) cover it without a dependency such as The Composable Architecture.
+- **Effects as data.** Because the reducer returns effects instead of running them, tests assert exactly which side effects an action causes without a network or a fake.
+- **Long-running effect.** The WebSocket session lives in `WebSocketPriceFeed`; the reducer only commands it, and its events come back as actions.
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `SymbolsRepository`), where tests need to substitute real network and data access.
-- **Main-actor by default.** The app target uses default `MainActor` isolation; I/O is `async`. Value types that cross isolation are `nonisolated` and `Sendable`.
+- **Main-actor by default.** The app target uses default `MainActor` isolation; I/O is `async`. State, actions and effects are `nonisolated` and `Sendable` values.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
 - **Trust boundary on the echo.** Echoed messages that fail to decode are dropped; updates for unknown tickers are ignored; duplicate tickers from the repository are de-duplicated.
 - **Price change** is the change since the symbol's previous update; the indicator and the Price Change sort both use it.
-- **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would dismiss an open sort menu).
 
 ## Project structure
 
@@ -89,7 +133,7 @@ MultiBankGroupTestTask/
 │   ├── Network/WebSocketConnection.swift
 │   ├── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator
 │   └── Symbols/SymbolsRepository.swift
-├── Store/StockPriceStore.swift
+├── Store/                               # AppState, AppAction + AppEffect, AppReducer, AppStore
 ├── Screens/
 │   ├── StockSymbolsNavigation/          # NavigationStack + alert presentation
 │   ├── StockSymbolsList/
@@ -114,13 +158,14 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 | `PriceUpdateGeneratorTests` | Reproducible sequences; distinct, known symbols per batch; prices positive, rounded to cents and within the configured change; symbol re-tracking. |
 | `WebSocketPriceFeedTests` | Connect → echo → publish; stop/restart; retry until connected; dropped socket and silent-server reconnect; stop during backoff; suspend/resume; one `connectionLost` per outage; immediate reconnect; empty symbol list. |
 | `ReconnectPolicyTests` | Exponential growth, cap and jitter scaling. |
-| `StockPriceStoreTests` | Price/change math; unknown symbols ignored; both sort orders; Start/Stop intents; lifecycle forwarding; symbol (re)loading and de-duplication; alert raising, precedence and retry. |
+| `AppReducerTests` | Pure state transitions and requested effects for every action: feed control, lifecycle, symbol loading and de-duplication, price/change math, unknown tickers, both sort orders, alert raising, precedence, dismissal and retry. |
+| `AppStoreTests` | The store performs effects against the feed and repository, feeds results back as actions, updates state synchronously and lets pull-to-refresh await the reload. |
 | `LocalizationTests` | Every UI string and symbol description has a German and Arabic entry, so untranslated text can't ship silently. |
 
 ## Source control
 
 - `main` is the stable branch: it always builds and passes the tests.
-- Work happens on feature branches. The whole implementation was built on `NetworkLayer` and merged into `main` with a merge commit (`--no-ff`), so the feature's history stays grouped and can be reverted as one unit.
+- Work happens on feature branches merged into `main` with a merge commit (`--no-ff`), so each feature's history stays grouped and can be reverted as one unit. The implementation was built on `NetworkLayer`; the move to Redux was made on `Redux`.
 - Small, single-purpose commits with descriptive messages: the price feed and models, the screens and store, tests, UI refinements, reconnect and background handling, localization, pull-to-refresh and error alerts, and this README.
 - Generated and per-user files (`xcuserdata/`, `DerivedData/`, `build/`, `.DS_Store`) are excluded via `.gitignore`.
 

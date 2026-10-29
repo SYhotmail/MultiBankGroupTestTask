@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct MultiBankGroupTestTaskApp: App {
-    @State private var store = StockPriceStore.live
+    @State private var store = AppStore.live
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -20,22 +20,22 @@ struct MultiBankGroupTestTaskApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .background: store.appDidEnterBackground()
-            case .active: store.appDidBecomeActive()
+            case .background: store.send(.appEnteredBackground)
+            case .active: store.send(.appBecameActive)
             default: break
             }
         }
     }
 }
 
-extension StockPriceStore {
+extension AppStore {
     private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
-    static var live: StockPriceStore {
-        StockPriceStore(repository: BundledSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+    static var live: AppStore {
+        AppStore(repository: BundledSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
     }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
-    static var preview: StockPriceStore { live }
+    static var preview: AppStore { live }
 }
