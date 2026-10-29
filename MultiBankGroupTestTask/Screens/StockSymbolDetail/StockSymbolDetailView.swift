@@ -27,6 +27,13 @@ struct StockSymbolDetailView: View {
                         .font(.title3)
                 }
 
+                if let updatedAt = quote.updatedAt {
+                    Text("Updated \(updatedAt, format: .dateTime.hour().minute().second())")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
                 Text("About")
                     .font(.headline)
                     .padding(.top)

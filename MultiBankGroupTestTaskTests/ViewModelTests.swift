@@ -48,8 +48,8 @@ struct StockSymbolsListViewModelTests {
         await fixture.load()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
         fixture.market.apply(.priceUpdates([
-            PriceUpdate(symbol: "AAA", price: 11),   // +1
-            PriceUpdate(symbol: "BBB", price: 29),   // -1
+            PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture),   // +1
+            PriceUpdate(symbol: "BBB", price: 29, timestamp: .fixture),   // -1
         ]))
 
         viewModel.sortOrder = .priceChange
@@ -63,9 +63,9 @@ struct StockSymbolsListViewModelTests {
         await fixture.load()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12)]))
+        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12, timestamp: .fixture)]))
 
-        #expect(viewModel.rows.first { $0.id == "AAA" }?.quote == StockQuote(price: 12, change: 2))
+        #expect(viewModel.rows.first { $0.id == "AAA" }?.quote == StockQuote(price: 12, change: 2, updatedAt: .fixture))
     }
 
     @Test func loadIfNeededLoadsOnlyOnce() async {
@@ -112,9 +112,9 @@ struct StockSymbolDetailViewModelTests {
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.symbols[1], market: fixture.market)
         #expect(viewModel.quote == StockQuote(price: 30))
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 27)]))
+        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 27, timestamp: .fixture)]))
 
-        #expect(viewModel.quote == StockQuote(price: 27, change: -3))
+        #expect(viewModel.quote == StockQuote(price: 27, change: -3, updatedAt: .fixture))
     }
 
     @Test func toggleStopsARunningFeed() async {
@@ -181,7 +181,7 @@ struct StockSymbolsNavigationViewModelTests {
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
         let detail = viewModel.detailViewModel(for: fixture.symbols[0])
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 9)]))
+        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 9, timestamp: .fixture)]))
 
         #expect(detail.quote.price == 9)
         #expect(viewModel.listViewModel.rows.first { $0.id == "AAA" }?.quote.price == 9)

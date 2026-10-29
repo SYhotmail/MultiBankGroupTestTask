@@ -745,6 +745,23 @@
         }
       },
       "comment" : "Description of JPM on the symbol detail screen."
+    },
+    "Updated %@" : {
+      "comment" : "Time of the last live price update on the symbol detail screen, e.g. “Updated 11:48:03”.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "آخر تحديث %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiert %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

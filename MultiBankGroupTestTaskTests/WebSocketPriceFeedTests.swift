@@ -24,7 +24,8 @@ struct WebSocketPriceFeedTests {
             generator: generator,
             updateInterval: .milliseconds(5),
             echoTimeout: echoTimeout,
-            reconnectPolicy: ReconnectPolicy(initialDelay: reconnectDelay, maxDelay: max(reconnectDelay, .milliseconds(20)))
+            reconnectPolicy: ReconnectPolicy(initialDelay: reconnectDelay, maxDelay: max(reconnectDelay, .milliseconds(20))),
+            now: { .fixture }
         ) {
             let connection = EchoWebSocketConnection()
             configure(connection, log.append(connection))
@@ -54,9 +55,13 @@ struct WebSocketPriceFeedTests {
             Issue.record("Expected price updates")
             return
         }
-        let sent = try JSONDecoder().decode([PriceUpdate].self, from: Data(connections()[0].sentMessages[0].utf8))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let sent = try decoder.decode([PriceUpdate].self, from: Data(connections()[0].sentMessages[0].utf8))
         #expect(updates == sent)
         #expect(!updates.isEmpty)
+        // Timestamps survive the ISO 8601 round trip through the echo server.
+        #expect(updates.allSatisfy { $0.timestamp == .fixture })
     }
 
     @Test func stopDisconnectsAndClosesTheSocket() async {

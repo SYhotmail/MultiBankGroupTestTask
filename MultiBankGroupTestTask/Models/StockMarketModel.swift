@@ -102,7 +102,7 @@ final class StockMarketModel {
             for update in updates {
                 // Ignore symbols we do not track.
                 guard let quote = quotes[update.symbol] else { continue }
-                quotes[update.symbol] = quote.updated(to: update.price)
+                quotes[update.symbol] = quote.updated(to: update.price, at: update.timestamp)
             }
         case .connectionLost:
             // Don't replace an issue the user hasn't seen yet.
