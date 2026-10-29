@@ -55,10 +55,8 @@ struct WebSocketPriceFeedTests {
             Issue.record("Expected price updates")
             return
         }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let sent = try decoder.decode([PriceUpdate].self, from: Data(connections()[0].sentMessages[0].utf8))
-        #expect(updates == sent)
+        let sent = try FeedMessageCodec().decode(connections()[0].sentMessages[0])
+        #expect(sent == .prices(updates))
         #expect(!updates.isEmpty)
         // Timestamps survive the ISO 8601 round trip through the echo server.
         #expect(updates.allSatisfy { $0.timestamp == .fixture })
@@ -214,6 +212,25 @@ struct WebSocketPriceFeedTests {
         await feed.stop()
 
         #expect(await events.next() == .connectionChanged(.disconnected))
+    }
+
+    @Test func unknownMessageTypeIsIgnoredWithoutDroppingTheConnection() async {
+        let (feed, connections) = makeFeed { connection, _ in
+            connection.replyOverride = #"{"type":"heartbeat"}"#
+        }
+        var events = feed.events.makeAsyncIterator()
+        await feed.start()
+        _ = await events.next() // connecting
+        _ = await events.next() // connected
+
+        // Several exchanges get an unknown reply: no updates, no reconnect; only our own disconnect follows.
+        while connections()[0].sentMessages.count < 3 {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        await feed.stop()
+
+        #expect(await events.next() == .connectionChanged(.disconnected))
+        #expect(connections().count == 1)
     }
 
     @Test func outageReportsConnectionLostOnce() async {
