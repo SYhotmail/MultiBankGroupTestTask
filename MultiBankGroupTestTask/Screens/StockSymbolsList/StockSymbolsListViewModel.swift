@@ -10,7 +10,7 @@ import Observation
 import OSLog
 
 /// The symbols list: owns which symbols exist (loaded from the provider), sorting and the feed
-/// controls shown above the list. Live prices come from the shared `StockMarketModel`.
+/// controls shown above the list. Live prices come from the shared `StockSymbolsMarketModel`.
 @MainActor
 @Observable
 final class StockSymbolsListViewModel: StockSymbolBaseViewModel {

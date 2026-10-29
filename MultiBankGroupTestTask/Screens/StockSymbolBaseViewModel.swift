@@ -12,11 +12,11 @@ import OSLog
 /// in each screen's toolbar, and where failures are reported.
 ///
 /// Not `@Observable` itself: it holds dependencies and a callback, nothing a view renders; reads of
-/// `connectionState` are tracked through `StockMarketModel`. Subclasses add `@Observable` for their own state.
+/// `connectionState` are tracked through `StockSymbolsMarketModel`. Subclasses add `@Observable` for their own state.
 @MainActor
 class StockSymbolBaseViewModel {
     let provider: any StockSymbolsProvider
-    let market: StockMarketModel
+    let market: StockSymbolsMarketModel
     let feed: any PriceFeed
     let logger: Logger
     /// Where a failed load or refresh is reported.
@@ -24,7 +24,7 @@ class StockSymbolBaseViewModel {
 
     init(
         provider: any StockSymbolsProvider,
-        market: StockMarketModel,
+        market: StockSymbolsMarketModel,
         feed: any PriceFeed,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
