@@ -8,6 +8,7 @@
 import Foundation
 
 /// Produces random-walk price updates for a random subset of symbols on each call.
+nonisolated
 struct PriceUpdateGenerator: Sendable {
     private var tickers: [String] = []
     private var prices: [String: Decimal] = [:]

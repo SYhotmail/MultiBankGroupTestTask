@@ -69,6 +69,7 @@ Below it sit the services:
 | Type | Responsibility |
 |---|---|
 | `WebSocketPriceFeed` (`PriceFeed`, actor) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
+| `FeedMessage` / `FeedMessageCodec` | Typed WebSocket messages (`Codable`) and the one place that fixes the wire format: JSON text frames, ISO 8601 dates. |
 | `PriceUpdateGenerator` | Seedable random walk (±2% per tick, rounded to cents) for a random subset of tracked symbols. |
 | `WebSocketConnection` | Thin protocol over `URLSessionWebSocketTask`; swapped for an in-memory echo in tests. |
 | `SymbolsRepository` (`Sendable`) | Supplies the symbol list. `BundledSymbolsRepository` (actor) serves the built-in catalog; a network-backed implementation can replace it without touching the UI. |
@@ -101,6 +102,7 @@ Views only render what their view model exposes and forward user actions to it. 
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `SymbolsRepository`), where tests need to substitute real network and data access.
 - **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services are actors (`WebSocketPriceFeed`, `BundledSymbolsRepository`), so the WebSocket session, price generation and JSON coding run on their own executors, never the main thread. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
+- **Typed wire format.** Every WebSocket message is a JSON envelope with a type discriminator and a payload, e.g. `{"type":"prices","payload":[{"symbol":"AAPL","price":229.1,"timestamp":"2027-01-15T08:00:00Z"}]}`. `FeedMessage` is a `Codable` enum with a hand-written coding implementation (Swift's synthesized enum coding produces a shape servers don't use); unknown types decode to `.unknown` and are skipped, so a server can add message types without breaking older apps. `JSONEncoder`/`JSONDecoder` aren't `Sendable`, so the codec lives inside the feed actor.
 - **Trust boundary on the echo.** Echoed messages that fail to decode are dropped; updates for unknown tickers are ignored; duplicate tickers from the repository are de-duplicated.
 - **Price change** is the change since the symbol's previous update; the indicator and the Price Change sort both use it.
 
@@ -136,6 +138,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 
 | Suite | Goal |
 |---|---|
+| `FeedMessageCodecTests` | Pins the wire format: envelope shape, ISO 8601 dates, round trip, decoding a server-written message, unknown types tolerated, malformed messages rejected. |
 | `PriceUpdateGeneratorTests` | Reproducible sequences; distinct, known symbols per batch; prices positive, rounded to cents and within the configured change; symbol re-tracking. |
 | `WebSocketPriceFeedTests` | Connect → echo → publish; stop/restart; retry until connected; dropped socket and silent-server reconnect; stop during backoff; suspend/resume; one `connectionLost` per outage; immediate reconnect; empty symbol list. |
 | `ReconnectPolicyTests` | Exponential growth, cap and jitter scaling. |
