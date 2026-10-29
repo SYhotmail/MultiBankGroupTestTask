@@ -11,8 +11,8 @@ import Observation
 /// The Model in MVVM: live symbols, quotes and feed state shared by every screen's view model.
 /// Knows nothing about presentation (sorting, alerts, formatting).
 ///
-/// Main-actor isolated because SwiftUI observes it; the feed and repository it drives are actors,
-/// so their work runs off the main thread and results come back here with `await`.
+/// Main-actor isolated because SwiftUI observes it. The feed it drives is an actor and the provider's
+/// methods are `@concurrent`, so their work runs off the main thread and results come back here with `await`.
 @MainActor
 @Observable
 final class StockMarketModel {
@@ -29,11 +29,11 @@ final class StockMarketModel {
     private(set) var isLoadingSymbols = false
     private(set) var issue: Issue?
 
-    private let repository: any StockSymbolsRepository
+    private let provider: any StockSymbolsProvider
     private let feed: any PriceFeed
 
-    init(repository: any StockSymbolsRepository, feed: any PriceFeed) {
-        self.repository = repository
+    init(provider: any StockSymbolsProvider, feed: any PriceFeed) {
+        self.provider = provider
         self.feed = feed
     }
 
@@ -54,7 +54,7 @@ final class StockMarketModel {
         isLoadingSymbols = true
         defer { isLoadingSymbols = false }
         do {
-            await replaceSymbols(with: try await repository.fetchStockSymbols())
+            await replaceSymbols(with: try await provider.fetchStockSymbols())
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
         } catch {
@@ -66,7 +66,7 @@ final class StockMarketModel {
     /// backend's price is newer than the live one; a failure raises an issue.
     func refreshSymbol(ticker: String) async {
         do {
-            let fetched = try await repository.fetchStockSymbol(id: ticker)
+            let fetched = try await provider.fetchStockSymbol(id: ticker)
             // Trust boundary: accept only the symbol we asked for, and only while we still track it.
             guard fetched.symbol.ticker == ticker,
                   let index = symbols.firstIndex(where: { $0.ticker == ticker }) else { return }
@@ -74,7 +74,7 @@ final class StockMarketModel {
             if let quote = quotes[ticker], fetched.timestamp > quote.updatedAt {
                 quotes[ticker] = quote.updated(to: fetched.price, at: fetched.timestamp)
             }
-        } catch StockSymbolsRepositoryError.notFound {
+        } catch StockSymbolsProviderError.notFound {
             // The backend deleted the symbol: stop tracking it, as a list reload without it would.
             await removeSymbol(ticker: ticker)
         } catch is CancellationError {

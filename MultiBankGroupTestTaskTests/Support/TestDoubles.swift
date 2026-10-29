@@ -142,7 +142,7 @@ actor FakePriceFeed: PriceFeed {
     func track(_ symbolPrices: [StockSymbolPrice]) { trackedSymbols = symbolPrices }
 }
 
-actor FakeStockSymbolsRepository: StockSymbolsRepository {
+actor FakeStockSymbolsProvider: StockSymbolsProvider {
     private var result: Result<[StockSymbolPrice], any Error>
     /// When set, answers `fetchStockSymbol(id:)`; otherwise it looks the id up in `result`.
     private var symbolResult: Result<StockSymbolPrice, any Error>?
@@ -166,7 +166,7 @@ actor FakeStockSymbolsRepository: StockSymbolsRepository {
     func fetchStockSymbol(id: String) async throws -> StockSymbolPrice {
         if let symbolResult { return try symbolResult.get() }
         guard let match = try result.get().first(where: { $0.symbol.ticker == id }) else {
-            throw StockSymbolsRepositoryError.notFound(id: id)
+            throw StockSymbolsProviderError.notFound(id: id)
         }
         return match
     }

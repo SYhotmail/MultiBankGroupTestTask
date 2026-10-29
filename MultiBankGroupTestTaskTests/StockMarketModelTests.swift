@@ -12,7 +12,7 @@ import Testing
 @MainActor
 struct StockMarketModelTests {
     private let feed = FakePriceFeed()
-    private let repository = FakeStockSymbolsRepository()
+    private let provider = FakeStockSymbolsProvider()
     private let catalog: [StockSymbolPrice] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
@@ -21,8 +21,8 @@ struct StockMarketModelTests {
 
     /// A model with `catalog` already loaded.
     private func makeModel() async -> StockMarketModel {
-        await repository.setResult(.success(catalog))
-        let model = StockMarketModel(repository: repository, feed: feed)
+        await provider.setResult(.success(catalog))
+        let model = StockMarketModel(provider: provider, feed: feed)
         await model.loadSymbols()
         return model
     }
@@ -104,7 +104,7 @@ struct StockMarketModelTests {
     @Test func reloadKeepsQuotesOfRemainingSymbolsAndAddsNewOnes() async {
         let model = await makeModel()
         model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
-        await repository.setResult(.success([catalog[0], .fixture("DDD", price: 5)]))
+        await provider.setResult(.success([catalog[0], .fixture("DDD", price: 5)]))
 
         await model.loadSymbols()
 
@@ -115,8 +115,8 @@ struct StockMarketModelTests {
     }
 
     @Test func duplicateTickersKeepTheFirstOccurrence() async {
-        await repository.setResult(.success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)]))
-        let model = StockMarketModel(repository: repository, feed: feed)
+        await provider.setResult(.success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)]))
+        let model = StockMarketModel(provider: provider, feed: feed)
 
         await model.loadSymbols()
 
@@ -126,7 +126,7 @@ struct StockMarketModelTests {
 
     @Test func failedLoadRaisesIssueAndKeepsCurrentSymbols() async {
         let model = await makeModel()
-        await repository.setResult(.failure(TestError()))
+        await provider.setResult(.failure(TestError()))
 
         await model.loadSymbols()
 
@@ -137,7 +137,7 @@ struct StockMarketModelTests {
 
     @Test func refreshReconnectsFeedAndReloadsSymbols() async {
         let model = await makeModel()
-        await repository.setResult(.success([catalog[2]]))
+        await provider.setResult(.success([catalog[2]]))
 
         await model.refresh()
 
@@ -147,7 +147,7 @@ struct StockMarketModelTests {
 
     @Test func connectionLostDoesNotReplaceAnUnseenIssue() async {
         let model = await makeModel()
-        await repository.setResult(.failure(TestError()))
+        await provider.setResult(.failure(TestError()))
         await model.loadSymbols()
 
         model.apply(.connectionLost)
@@ -174,7 +174,7 @@ struct StockMarketModelTests {
 
     @Test func refreshSymbolUpdatesItsDetails() async {
         let model = await makeModel()
-        await repository.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
+        await provider.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
 
         await model.refreshSymbol(ticker: "BBB")
 
@@ -184,7 +184,7 @@ struct StockMarketModelTests {
 
     @Test func refreshSymbolTakesANewerPrice() async {
         let model = await makeModel()
-        await repository.setSymbolResult(.success(.fixture("BBB", price: 33, at: .fixture)))
+        await provider.setSymbolResult(.success(.fixture("BBB", price: 33, at: .fixture)))
 
         await model.refreshSymbol(ticker: "BBB")
 
@@ -195,7 +195,7 @@ struct StockMarketModelTests {
         let model = await makeModel()
         model.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
         // The backend's price is older than the live update.
-        await repository.setSymbolResult(.success(.fixture("BBB", price: 99, at: .referenceFixture)))
+        await provider.setSymbolResult(.success(.fixture("BBB", price: 99, at: .referenceFixture)))
 
         await model.refreshSymbol(ticker: "BBB")
 
@@ -204,7 +204,7 @@ struct StockMarketModelTests {
 
     @Test func refreshSymbolIgnoresAResponseForAnotherSymbol() async {
         let model = await makeModel()
-        await repository.setSymbolResult(.success(.fixture("CCC", name: "Wrong", price: 1, at: .fixture)))
+        await provider.setSymbolResult(.success(.fixture("CCC", name: "Wrong", price: 1, at: .fixture)))
 
         await model.refreshSymbol(ticker: "BBB")
 
@@ -214,7 +214,7 @@ struct StockMarketModelTests {
 
     @Test func refreshSymbolFailureRaisesIssueAndKeepsData() async {
         let model = await makeModel()
-        await repository.setSymbolResult(.failure(TestError()))
+        await provider.setSymbolResult(.failure(TestError()))
 
         await model.refreshSymbol(ticker: "BBB")
 
@@ -224,7 +224,7 @@ struct StockMarketModelTests {
 
     @Test func refreshSymbolNotFoundRemovesTheSymbol() async {
         let model = await makeModel()
-        await repository.setSymbolResult(.failure(StockSymbolsRepositoryError.notFound(id: "BBB")))
+        await provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
 
         await model.refreshSymbol(ticker: "BBB")
 
