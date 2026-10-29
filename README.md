@@ -154,6 +154,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 | `StockSymbolDetailViewModelTests` | Quote follows live updates; nil once a refresh removes the symbol; refresh shows the backend's latest details; toggle stops a running feed. |
 | `StockSymbolsProviderTests` | The bundled provider behaves like the endpoints: list, fetch by id, `notFound` for unknown ids. |
 | `StockSymbolsNavigationViewModelTests` | Driven only through the fake provider and feed (the model is internal). Selection shows the symbol and clears after a `404`, a list reload without it, or for an unknown ticker; alert mirrors the model issue; dismiss; retry reloads the list, refreshes the symbol or reconnects; detail and list view models share live data. |
+| `MemoryLeakTests` | No retain cycles: after the navigation view model has loaded symbols, opened a detail, toggled the feed and applied feed events, releasing it releases the list and detail view models and the model (checked through its feed, which only the model owns). |
 | `LocalizationTests` | Every UI string and symbol description has a German and Arabic entry, so untranslated text can't ship silently. |
 
 ## Source control
