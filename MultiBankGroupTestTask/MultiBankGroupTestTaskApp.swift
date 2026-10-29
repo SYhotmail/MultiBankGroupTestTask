@@ -39,7 +39,7 @@ extension StockMarketModel {
 
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
     static var live: StockMarketModel {
-        StockMarketModel(repository: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+        StockMarketModel(provider: BundledStockSymbolsProvider(), feed: WebSocketPriceFeed(url: priceFeedURL))
     }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.

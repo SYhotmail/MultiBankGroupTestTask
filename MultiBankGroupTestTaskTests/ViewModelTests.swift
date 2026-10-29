@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import MultiBankGroupTestTask
 
-/// Shared setup: a real `StockMarketModel` over a fake feed and repository, so view models are
+/// Shared setup: a real `StockMarketModel` over a fake feed and provider, so view models are
 /// tested against the same model the app uses.
 @MainActor
 private struct Fixture {
@@ -19,12 +19,12 @@ private struct Fixture {
         .fixture("CCC", price: 20),
     ]
     let feed = FakePriceFeed()
-    let repository: FakeStockSymbolsRepository
+    let provider: FakeStockSymbolsProvider
     let market: StockMarketModel
 
     init() {
-        repository = FakeStockSymbolsRepository(result: .success(catalog))
-        market = StockMarketModel(repository: repository, feed: feed)
+        provider = FakeStockSymbolsProvider(result: .success(catalog))
+        market = StockMarketModel(provider: provider, feed: feed)
     }
 
     func load() async {
@@ -73,7 +73,7 @@ struct StockSymbolsListViewModelTests {
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
 
         await viewModel.loadIfNeeded()
-        await fixture.repository.setResult(.success([]))
+        await fixture.provider.setResult(.success([]))
         await viewModel.loadIfNeeded()
 
         #expect(viewModel.rows.count == 3)
@@ -84,7 +84,7 @@ struct StockSymbolsListViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
-        await fixture.repository.setResult(.success([fixture.catalog[0]]))
+        await fixture.provider.setResult(.success([fixture.catalog[0]]))
 
         await viewModel.refresh()
 
@@ -121,7 +121,7 @@ struct StockSymbolDetailViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
-        await fixture.repository.setResult(.success([fixture.catalog[0]]))
+        await fixture.provider.setResult(.success([fixture.catalog[0]]))
 
         await fixture.market.loadSymbols()
 
@@ -133,7 +133,7 @@ struct StockSymbolDetailViewModelTests {
         await fixture.load()
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
         #expect(!viewModel.isDeleted)
-        await fixture.repository.setSymbolResult(.failure(StockSymbolsRepositoryError.notFound(id: "BBB")))
+        await fixture.provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
 
         await viewModel.refresh()
 
@@ -144,7 +144,7 @@ struct StockSymbolDetailViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
-        await fixture.repository.setResult(.success([fixture.catalog[0]]))
+        await fixture.provider.setResult(.success([fixture.catalog[0]]))
 
         await fixture.market.loadSymbols()
 
@@ -155,7 +155,7 @@ struct StockSymbolDetailViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
-        await fixture.repository.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
+        await fixture.provider.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
 
         await viewModel.refresh()
 
@@ -198,10 +198,10 @@ struct StockSymbolsNavigationViewModelTests {
 
     @Test func retryingASymbolsIssueReloads() async {
         let fixture = Fixture()
-        await fixture.repository.setResult(.failure(TestError()))
+        await fixture.provider.setResult(.failure(TestError()))
         await fixture.load()
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        await fixture.repository.setResult(.success(fixture.catalog))
+        await fixture.provider.setResult(.success(fixture.catalog))
 
         await viewModel.retry(.symbolsUnavailable)
 
@@ -212,11 +212,11 @@ struct StockSymbolsNavigationViewModelTests {
     @Test func retryingASymbolIssueRefreshesThatSymbol() async {
         let fixture = Fixture()
         await fixture.load()
-        await fixture.repository.setSymbolResult(.failure(TestError()))
+        await fixture.provider.setSymbolResult(.failure(TestError()))
         await fixture.market.refreshSymbol(ticker: "AAA")
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
         #expect(viewModel.alert == .symbolUnavailable(ticker: "AAA"))
-        await fixture.repository.setSymbolResult(.success(.fixture("AAA", name: "AAA Group", price: 10)))
+        await fixture.provider.setSymbolResult(.success(.fixture("AAA", name: "AAA Group", price: 10)))
 
         await viewModel.retry(.symbolUnavailable(ticker: "AAA"))
 
