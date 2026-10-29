@@ -12,7 +12,7 @@ import Testing
 @MainActor
 struct StockMarketModelTests {
     private let feed = FakePriceFeed()
-    private let repository = FakeSymbolsRepository()
+    private let repository = FakeStockSymbolsRepository()
     private let catalog: [StockSymbolPrice] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
@@ -167,6 +167,71 @@ struct StockMarketModelTests {
 
         model.clearIssue()
 
+        #expect(model.issue == nil)
+    }
+
+    // MARK: - Single-symbol refresh
+
+    @Test func refreshSymbolUpdatesItsDetails() async {
+        let model = await makeModel()
+        await repository.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.symbol(ticker: "BBB")?.name == "BBB Holdings")
+        #expect(model.symbols.map(\.ticker) == ["AAA", "BBB", "CCC"])
+    }
+
+    @Test func refreshSymbolTakesANewerPrice() async {
+        let model = await makeModel()
+        await repository.setSymbolResult(.success(.fixture("BBB", price: 33, at: .fixture)))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.quotes["BBB"] == StockQuote(price: 33, change: 3, updatedAt: .fixture))
+    }
+
+    @Test func refreshSymbolKeepsANewerLiveQuote() async {
+        let model = await makeModel()
+        model.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
+        // The backend's price is older than the live update.
+        await repository.setSymbolResult(.success(.fixture("BBB", price: 99, at: .referenceFixture)))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.quotes["BBB"] == StockQuote(price: 31, change: 1, updatedAt: .fixture))
+    }
+
+    @Test func refreshSymbolIgnoresAResponseForAnotherSymbol() async {
+        let model = await makeModel()
+        await repository.setSymbolResult(.success(.fixture("CCC", name: "Wrong", price: 1, at: .fixture)))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.symbols == catalog.map(\.symbol))
+        #expect(model.quotes["CCC"] == StockQuote(price: 20, updatedAt: .referenceFixture))
+    }
+
+    @Test func refreshSymbolFailureRaisesIssueAndKeepsData() async {
+        let model = await makeModel()
+        await repository.setSymbolResult(.failure(TestError()))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.issue == .symbolUnavailable(ticker: "BBB"))
+        #expect(model.symbols == catalog.map(\.symbol))
+    }
+
+    @Test func refreshSymbolNotFoundRemovesTheSymbol() async {
+        let model = await makeModel()
+        await repository.setSymbolResult(.failure(StockSymbolsRepositoryError.notFound(id: "BBB")))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.symbols.map(\.ticker) == ["AAA", "CCC"])
+        #expect(model.quotes["BBB"] == nil)
+        #expect(await feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
+        // A deletion is not an error.
         #expect(model.issue == nil)
     }
 }

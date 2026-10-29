@@ -19,11 +19,11 @@ private struct Fixture {
         .fixture("CCC", price: 20),
     ]
     let feed = FakePriceFeed()
-    let repository: FakeSymbolsRepository
+    let repository: FakeStockSymbolsRepository
     let market: StockMarketModel
 
     init() {
-        repository = FakeSymbolsRepository(result: .success(catalog))
+        repository = FakeStockSymbolsRepository(result: .success(catalog))
         market = StockMarketModel(repository: repository, feed: feed)
     }
 
@@ -128,6 +128,40 @@ struct StockSymbolDetailViewModelTests {
         #expect(viewModel.quote == nil)
     }
 
+    @Test func isDeletedWhenTheBackendNoLongerHasTheSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
+        #expect(!viewModel.isDeleted)
+        await fixture.repository.setSymbolResult(.failure(StockSymbolsRepositoryError.notFound(id: "BBB")))
+
+        await viewModel.refresh()
+
+        #expect(viewModel.isDeleted)
+    }
+
+    @Test func isDeletedWhenAListReloadDropsTheSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
+        await fixture.repository.setResult(.success([fixture.catalog[0]]))
+
+        await fixture.market.loadSymbols()
+
+        #expect(viewModel.isDeleted)
+    }
+
+    @Test func refreshShowsTheBackendsLatestDetails() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
+        await fixture.repository.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
+
+        await viewModel.refresh()
+
+        #expect(viewModel.symbol.name == "BBB Holdings")
+    }
+
     @Test func toggleStopsARunningFeed() async {
         let fixture = Fixture()
         fixture.market.apply(.connectionChanged(.connected))
@@ -173,6 +207,21 @@ struct StockSymbolsNavigationViewModelTests {
 
         #expect(viewModel.alert == nil)
         #expect(fixture.market.symbols == fixture.catalog.map(\.symbol))
+    }
+
+    @Test func retryingASymbolIssueRefreshesThatSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        await fixture.repository.setSymbolResult(.failure(TestError()))
+        await fixture.market.refreshSymbol(ticker: "AAA")
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+        #expect(viewModel.alert == .symbolUnavailable(ticker: "AAA"))
+        await fixture.repository.setSymbolResult(.success(.fixture("AAA", name: "AAA Group", price: 10)))
+
+        await viewModel.retry(.symbolUnavailable(ticker: "AAA"))
+
+        #expect(viewModel.alert == nil)
+        #expect(fixture.market.symbol(ticker: "AAA")?.name == "AAA Group")
     }
 
     @Test func retryingAConnectionIssueReconnects() async {

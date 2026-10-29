@@ -97,6 +97,23 @@
         }
       }
     },
+    "Couldn't Refresh %@" : {
+      "comment" : "Alert title when refreshing one symbol fails; %@ is the ticker, e.g. “Couldn't Refresh AAPL”.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر تحديث %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ konnte nicht aktualisiert werden"
+          }
+        }
+      }
+    },
     "Designs CPUs, GPUs and adaptive chips for PCs, consoles and data centers." : {
       "localizations" : {
         "ar" : {

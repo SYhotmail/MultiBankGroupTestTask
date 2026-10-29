@@ -36,6 +36,7 @@ final class StockSymbolsNavigationViewModel {
         market.clearIssue()
         switch issue {
         case .symbolsUnavailable: await market.loadSymbols()
+        case .symbolUnavailable(let ticker): await market.refreshSymbol(ticker: ticker)
         case .connectionLost: await market.reconnectFeed()
         }
     }
