@@ -68,5 +68,5 @@ private extension StockMarketModel.Issue {
 }
 
 #Preview {
-    StockSymbolsNavigationView(viewModel: StockSymbolsNavigationViewModel(market: .preview))
+    StockSymbolsNavigationView(viewModel: .preview)
 }

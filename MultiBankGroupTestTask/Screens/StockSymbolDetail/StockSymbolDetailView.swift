@@ -63,6 +63,6 @@ struct StockSymbolDetailView: View {
 
 #Preview {
     NavigationStack {
-        StockSymbolDetailView(viewModel: StockSymbolDetailViewModel(symbol: StockSymbolPrice.catalog[0].symbol, market: .preview))
+        StockSymbolDetailView(viewModel: StockSymbolsNavigationViewModel.preview.detailViewModel(for: StockSymbolPrice.catalog[0].symbol))
     }
 }
