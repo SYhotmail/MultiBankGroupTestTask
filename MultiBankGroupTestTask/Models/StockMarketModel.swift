@@ -28,6 +28,8 @@ final class StockMarketModel {
     private(set) var connectionState: ConnectionState = .disconnected
     private(set) var isLoadingSymbols = false
     private(set) var issue: Issue?
+    /// The error behind `issue`, for debugging; Debug builds show it in the alert.
+    private(set) var issueDebugDescription: String?
 
     private let provider: any StockSymbolsProvider
     private let feed: any PriceFeed
@@ -59,6 +61,7 @@ final class StockMarketModel {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
         } catch {
             issue = .symbolsUnavailable
+            issueDebugDescription = String(reflecting: error)
         }
     }
 
@@ -80,8 +83,7 @@ final class StockMarketModel {
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
         } catch {
-            // Don't replace an issue the user hasn't seen yet.
-            issue = issue ?? .symbolUnavailable(ticker: ticker)
+            raiseUnlessPending(.symbolUnavailable(ticker: ticker), debugDescription: String(reflecting: error))
         }
     }
 
@@ -115,6 +117,7 @@ final class StockMarketModel {
 
     func clearIssue() {
         issue = nil
+        issueDebugDescription = nil
     }
 
     /// The app moved to the background; sockets don't survive suspension, so drop it cleanly.
@@ -144,10 +147,16 @@ final class StockMarketModel {
                 guard let quote = quotes[update.symbol] else { continue }
                 quotes[update.symbol] = quote.updated(to: update.price, at: update.timestamp)
             }
-        case .connectionLost:
-            // Don't replace an issue the user hasn't seen yet.
-            issue = issue ?? .connectionLost
+        case .connectionLost(let reason):
+            raiseUnlessPending(.connectionLost, debugDescription: reason)
         }
+    }
+
+    /// Raises `newIssue` unless one is already showing: don't replace an issue the user hasn't seen yet.
+    private func raiseUnlessPending(_ newIssue: Issue, debugDescription: String) {
+        guard issue == nil else { return }
+        issue = newIssue
+        issueDebugDescription = debugDescription
     }
 
     private func replaceSymbols(with fetched: [StockSymbolPrice]) async {

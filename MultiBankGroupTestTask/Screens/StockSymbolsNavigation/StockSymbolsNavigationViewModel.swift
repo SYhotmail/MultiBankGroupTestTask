@@ -24,6 +24,9 @@ final class StockSymbolsNavigationViewModel {
 
     var alert: StockMarketModel.Issue? { market.issue }
 
+    /// The error behind `alert`, for Debug builds.
+    var alertDebugDescription: String? { market.issueDebugDescription }
+
     func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
         StockSymbolDetailViewModel(symbol: symbol, market: market)
     }

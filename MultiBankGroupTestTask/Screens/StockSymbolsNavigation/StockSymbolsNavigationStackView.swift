@@ -28,8 +28,18 @@ struct StockSymbolsNavigationStackView: View {
             }
             Button("OK", role: .cancel) {}
         } message: { alert in
-            Text(alert.message)
+            messageText(for: alert)
         }
+    }
+
+    private func messageText(for alert: StockMarketModel.Issue) -> Text {
+        #if DEBUG
+        if let detail = viewModel.alertDebugDescription {
+            // Debug builds append the underlying error. It's for developers, so it isn't localized.
+            return Text(verbatim: "\(String(localized: alert.message))\n\n[DEBUG] \(detail)")
+        }
+        #endif
+        return Text(alert.message)
     }
 }
 
@@ -42,7 +52,7 @@ private extension StockMarketModel.Issue {
         }
     }
 
-    var message: LocalizedStringKey {
+    var message: LocalizedStringResource {
         switch self {
         case .symbolsUnavailable, .symbolUnavailable: "Check your connection and try again."
         case .connectionLost: "Live prices are unavailable. The app will keep trying to reconnect."
