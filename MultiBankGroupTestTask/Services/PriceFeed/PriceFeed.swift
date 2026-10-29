@@ -10,6 +10,8 @@ import Foundation
 nonisolated enum PriceFeedEvent: Equatable, Sendable {
     case connectionChanged(ConnectionState)
     case priceUpdates([PriceUpdate])
+    /// The live connection failed. Sent once per outage; the feed keeps retrying on its own.
+    case connectionLost
 }
 
 /// A source of live prices that can be started and stopped.
@@ -24,6 +26,10 @@ protocol PriceFeed: AnyObject {
     func suspend()
     /// App is active again: reconnect if the feed was running before `suspend()`.
     func resume()
+    /// Reconnects immediately if the feed is running, skipping any backoff wait.
+    func reconnect()
+    /// Generates updates for these symbols from now on.
+    func track(_ symbols: [StockSymbol])
 }
 
 /// Delay before reconnecting: exponential growth from `initialDelay`, capped at `maxDelay`.
@@ -73,8 +79,8 @@ final class WebSocketPriceFeed: PriceFeed {
         self.makeConnection = makeConnection
     }
 
-    convenience init(url: URL, symbols: [StockSymbol]) {
-        self.init(generator: PriceUpdateGenerator(symbols: symbols)) {
+    convenience init(url: URL) {
+        self.init(generator: PriceUpdateGenerator(symbols: [])) {
             URLSessionWebSocketConnection(url: url)
         }
     }
@@ -99,19 +105,31 @@ final class WebSocketPriceFeed: PriceFeed {
         startSessionIfNeeded()
     }
 
+    func reconnect() {
+        guard session != nil else { return }
+        endSession(reportsDisconnect: false)
+        startSessionIfNeeded()
+    }
+
+    func track(_ symbols: [StockSymbol]) {
+        generator.track(symbols)
+    }
+
     private func startSessionIfNeeded() {
         guard isRequested, !isSuspended, session == nil else { return }
         continuation.yield(.connectionChanged(.connecting))
         session = Task { await runSession() }
     }
 
-    private func endSession() {
+    private func endSession(reportsDisconnect: Bool = true) {
         guard let session else { return }
         session.cancel()
         self.session = nil
         connection?.close()
         connection = nil
-        continuation.yield(.connectionChanged(.disconnected))
+        if reportsDisconnect {
+            continuation.yield(.connectionChanged(.disconnected))
+        }
     }
 
     /// Connects and streams updates, reconnecting after failures until the session is cancelled.
@@ -134,6 +152,9 @@ final class WebSocketPriceFeed: PriceFeed {
                 // A cancelled session was ended by stop/suspend, which already reported it.
                 guard !Task.isCancelled else { return }
                 failures += 1
+                if failures == 1 {
+                    continuation.yield(.connectionLost)
+                }
                 continuation.yield(.connectionChanged(.connecting))
                 try? await Task.sleep(for: reconnectPolicy.delay(afterFailures: failures, jitter: .random(in: 0.5...1)))
             }
@@ -141,7 +162,9 @@ final class WebSocketPriceFeed: PriceFeed {
     }
 
     private func exchangeUpdates(over connection: any WebSocketConnection) async throws {
-        let message = String(decoding: try encoder.encode(generator.next()), as: UTF8.self)
+        let updates = generator.next()
+        guard !updates.isEmpty else { return }
+        let message = String(decoding: try encoder.encode(updates), as: UTF8.self)
         try await connection.send(message)
 
         // A silent server never fails `receive()` on its own; closing the socket makes it throw.
@@ -154,7 +177,7 @@ final class WebSocketPriceFeed: PriceFeed {
         try Task.checkCancellation()
 
         // The echo crosses a trust boundary: drop anything that is not a valid update batch.
-        guard let updates = try? decoder.decode([PriceUpdate].self, from: Data(echo.utf8)) else { return }
-        continuation.yield(.priceUpdates(updates))
+        guard let echoed = try? decoder.decode([PriceUpdate].self, from: Data(echo.utf8)) else { return }
+        continuation.yield(.priceUpdates(echoed))
     }
 }

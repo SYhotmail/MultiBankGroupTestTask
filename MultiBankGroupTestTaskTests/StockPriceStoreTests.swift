@@ -12,24 +12,29 @@ import Testing
 @MainActor
 struct StockPriceStoreTests {
     private let feed = FakePriceFeed()
+    private let repository = FakeSymbolsRepository()
     private let symbols: [StockSymbol] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
         .fixture("CCC", price: 20),
     ]
 
-    private func makeStore() -> StockPriceStore {
-        StockPriceStore(symbols: symbols, feed: feed)
+    /// A store with `symbols` already loaded.
+    private func makeStore() async -> StockPriceStore {
+        repository.result = .success(symbols)
+        let store = StockPriceStore(repository: repository, feed: feed)
+        await store.loadSymbols()
+        return store
     }
 
-    @Test func startsWithReferencePricesAndNoChange() {
-        let store = makeStore()
+    @Test func startsWithReferencePricesAndNoChange() async {
+        let store = await makeStore()
         #expect(store.quote(for: symbols[0]) == StockQuote(price: 10, change: 0))
         #expect(store.connectionState == .disconnected)
     }
 
-    @Test func priceUpdateRecordsNewPriceAndChange() {
-        let store = makeStore()
+    @Test func priceUpdateRecordsNewPriceAndChange() async {
+        let store = await makeStore()
 
         store.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12.5)]))
         #expect(store.quote(for: symbols[0]) == StockQuote(price: 12.5, change: 2.5))
@@ -40,8 +45,8 @@ struct StockPriceStoreTests {
         #expect(store.quote(for: symbols[0]).direction == .down)
     }
 
-    @Test func updatesForUnknownSymbolsAreIgnored() {
-        let store = makeStore()
+    @Test func updatesForUnknownSymbolsAreIgnored() async {
+        let store = await makeStore()
         let before = store.quotes
 
         store.apply(.priceUpdates([PriceUpdate(symbol: "ZZZ", price: 1)]))
@@ -49,14 +54,14 @@ struct StockPriceStoreTests {
         #expect(store.quotes == before)
     }
 
-    @Test func sortsByPriceDescending() {
-        let store = makeStore()
+    @Test func sortsByPriceDescending() async {
+        let store = await makeStore()
         store.sortOrder = .price
         #expect(store.sortedSymbols.map(\.ticker) == ["BBB", "CCC", "AAA"])
     }
 
-    @Test func sortsByPriceChangeDescendingWithTickerTieBreak() {
-        let store = makeStore()
+    @Test func sortsByPriceChangeDescendingWithTickerTieBreak() async {
+        let store = await makeStore()
         store.apply(.priceUpdates([
             PriceUpdate(symbol: "AAA", price: 11),   // +1
             PriceUpdate(symbol: "BBB", price: 29),   // -1
@@ -67,8 +72,8 @@ struct StockPriceStoreTests {
     }
 
     @Test(arguments: [ConnectionState.connecting, .connected])
-    func toggleStopsARunningFeed(state: ConnectionState) {
-        let store = makeStore()
+    func toggleStopsARunningFeed(state: ConnectionState) async {
+        let store = await makeStore()
         store.apply(.connectionChanged(state))
 
         store.toggleFeed()
@@ -77,8 +82,8 @@ struct StockPriceStoreTests {
         #expect(feed.startCount == 0)
     }
 
-    @Test func toggleStartsAStoppedFeed() {
-        let store = makeStore()
+    @Test func toggleStartsAStoppedFeed() async {
+        let store = await makeStore()
 
         store.toggleFeed()
 
@@ -86,8 +91,8 @@ struct StockPriceStoreTests {
         #expect(feed.stopCount == 0)
     }
 
-    @Test func appLifecycleSuspendsAndResumesTheFeed() {
-        let store = makeStore()
+    @Test func appLifecycleSuspendsAndResumesTheFeed() async {
+        let store = await makeStore()
 
         store.appDidEnterBackground()
         store.appDidBecomeActive()
@@ -97,7 +102,7 @@ struct StockPriceStoreTests {
     }
 
     @Test func observeFeedAppliesEventsInOrder() async {
-        let store = makeStore()
+        let store = await makeStore()
         feed.continuation.yield(.connectionChanged(.connected))
         feed.continuation.yield(.priceUpdates([PriceUpdate(symbol: "CCC", price: 25)]))
         feed.continuation.finish()
@@ -106,5 +111,87 @@ struct StockPriceStoreTests {
 
         #expect(store.connectionState == .connected)
         #expect(store.quote(for: symbols[2]) == StockQuote(price: 25, change: 5))
+    }
+
+    @Test func loadingSymbolsTracksThemInTheFeed() async {
+        _ = await makeStore()
+        #expect(feed.trackedSymbols == symbols)
+    }
+
+    @Test func reloadKeepsQuotesOfRemainingSymbolsAndAddsNewOnes() async {
+        let store = await makeStore()
+        store.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15)]))
+        repository.result = .success([symbols[0], .fixture("DDD", price: 5)])
+
+        await store.loadSymbols()
+
+        #expect(store.symbols.map(\.ticker) == ["AAA", "DDD"])
+        #expect(store.quote(for: symbols[0]) == StockQuote(price: 15, change: 5))
+        #expect(store.quotes["BBB"] == nil)
+        #expect(store.quotes["DDD"] == StockQuote(price: 5))
+    }
+
+    @Test func duplicateTickersKeepTheFirstOccurrence() async {
+        let store = await makeStore()
+        repository.result = .success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)])
+
+        await store.loadSymbols()
+
+        #expect(store.symbols.count == 1)
+        #expect(store.symbols.first?.referencePrice == 1)
+    }
+
+    @Test func failedLoadRaisesAlertAndKeepsCurrentSymbols() async {
+        let store = await makeStore()
+        repository.result = .failure(TestError())
+
+        await store.loadSymbols()
+
+        #expect(store.alert == .symbolsUnavailable)
+        #expect(store.symbols == symbols)
+        #expect(!store.isLoadingSymbols)
+    }
+
+    @Test func retryingFailedLoadClearsAlertAndReloads() async {
+        let store = await makeStore()
+        repository.result = .failure(TestError())
+        await store.loadSymbols()
+        repository.result = .success([symbols[1]])
+
+        await store.retry(.symbolsUnavailable)
+
+        #expect(store.alert == nil)
+        #expect(store.symbols == [symbols[1]])
+    }
+
+    @Test func refreshReconnectsFeedAndReloadsSymbols() async {
+        let store = await makeStore()
+        repository.result = .success([symbols[2]])
+
+        await store.refresh()
+
+        #expect(feed.reconnectCount == 1)
+        #expect(store.symbols == [symbols[2]])
+    }
+
+    @Test func connectionLostRaisesAlertAndRetryReconnects() async {
+        let store = await makeStore()
+
+        store.apply(.connectionLost)
+        #expect(store.alert == .connectionLost)
+
+        await store.retry(.connectionLost)
+        #expect(store.alert == nil)
+        #expect(feed.reconnectCount == 1)
+    }
+
+    @Test func connectionLostDoesNotReplaceAnUnseenAlert() async {
+        let store = await makeStore()
+        repository.result = .failure(TestError())
+        await store.loadSymbols()
+
+        store.apply(.connectionLost)
+
+        #expect(store.alert == .symbolsUnavailable)
     }
 }

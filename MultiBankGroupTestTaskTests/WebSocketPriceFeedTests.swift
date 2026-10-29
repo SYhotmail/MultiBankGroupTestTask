@@ -15,6 +15,7 @@ struct WebSocketPriceFeedTests {
     /// - Parameter configure: Called for each new connection with its zero-based index.
     private func makeFeed(
         echoTimeout: Duration = .seconds(10),
+        reconnectDelay: Duration = .milliseconds(5),
         configure: @escaping (EchoWebSocketConnection, Int) -> Void = { _, _ in }
     ) -> (WebSocketPriceFeed, () -> [EchoWebSocketConnection]) {
         var created: [EchoWebSocketConnection] = []
@@ -23,7 +24,7 @@ struct WebSocketPriceFeedTests {
             generator: generator,
             updateInterval: .milliseconds(5),
             echoTimeout: echoTimeout,
-            reconnectPolicy: ReconnectPolicy(initialDelay: .milliseconds(5), maxDelay: .milliseconds(20))
+            reconnectPolicy: ReconnectPolicy(initialDelay: reconnectDelay, maxDelay: max(reconnectDelay, .milliseconds(20)))
         ) {
             let connection = EchoWebSocketConnection()
             configure(connection, created.count)
@@ -209,7 +210,72 @@ struct WebSocketPriceFeedTests {
 
         #expect(await events.next() == .connectionChanged(.disconnected))
     }
+
+    @Test func outageReportsConnectionLostOnce() async {
+        let (feed, _) = makeFeed { connection, index in
+            if index < 3 { connection.connectError = TestError() }
+        }
+        var events = feed.events.makeAsyncIterator()
+        feed.start()
+
+        var lostCount = 0
+        while let event = await events.next(), event != .connectionChanged(.connected) {
+            if event == .connectionLost { lostCount += 1 }
+        }
+        #expect(lostCount == 1)
+    }
+
+    @Test func reconnectSkipsTheBackoffWait() async {
+        let (feed, _) = makeFeed(reconnectDelay: .seconds(60)) { connection, index in
+            if index == 0 { connection.connectError = TestError() }
+        }
+        var events = feed.events.makeAsyncIterator()
+        feed.start()
+        while let event = await events.next(), event != .connectionLost {}
+
+        // Without reconnect() the next attempt would wait about a minute.
+        feed.reconnect()
+
+        var states: [ConnectionState] = []
+        while states.last != .connected, let state = await nextState(&events) { states.append(state) }
+        #expect(!states.contains(.disconnected))
+    }
+
+    @Test func reconnectDoesNotStartAStoppedFeed() async {
+        let (feed, connections) = makeFeed()
+
+        feed.reconnect()
+
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(connections().isEmpty)
+    }
+
+    @Test func updatesFollowTheTrackedSymbols() async {
+        let (feed, _) = makeFeed()
+        feed.track([.fixture("ZZZ", price: 1)])
+        var events = feed.events.makeAsyncIterator()
+        feed.start()
+
+        while let event = await events.next() {
+            guard case .priceUpdates(let updates) = event else { continue }
+            #expect(updates.map(\.symbol) == ["ZZZ"])
+            break
+        }
+    }
+
+    @Test func emptySymbolListSendsNothing() async {
+        let (feed, connections) = makeFeed()
+        feed.track([])
+        var events = feed.events.makeAsyncIterator()
+        feed.start()
+        #expect(await nextState(&events) == .connecting)
+        #expect(await nextState(&events) == .connected)
+
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(connections()[0].sentMessages.isEmpty)
+    }
 }
+
 
 struct ReconnectPolicyTests {
     private let policy = ReconnectPolicy(initialDelay: .seconds(1), maxDelay: .seconds(30))

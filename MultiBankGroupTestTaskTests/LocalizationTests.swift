@@ -19,7 +19,13 @@ struct LocalizationTests {
         "Stocks", "Start", "Stop", "Sort", "Sort by", "Price", "Price Change",
         "Connected", "Connecting", "Disconnected",
         "Price up", "Price down", "Price unchanged", "About",
+        "Couldn't Load Symbols", "Check your connection and try again.",
+        "Connection Problem", "Live prices are unavailable. The app will keep trying to reconnect.",
+        "Retry", "OK",
     ]
+
+    /// Returned by `localizedString` only when the key has no entry; a translation may equal its key (e.g. "OK").
+    private static let missing = "<missing>"
 
     private func bundle(for language: String) throws -> Bundle {
         let appBundle = Bundle(for: StockPriceStore.self)
@@ -31,7 +37,7 @@ struct LocalizationTests {
     func uiStringsAreTranslated(language: String) throws {
         let bundle = try bundle(for: language)
         for key in Self.uiKeys {
-            #expect(bundle.localizedString(forKey: key, value: nil, table: nil) != key, "\(key) in \(language)")
+            #expect(bundle.localizedString(forKey: key, value: Self.missing, table: nil) != Self.missing, "\(key) in \(language)")
         }
     }
 
@@ -40,7 +46,7 @@ struct LocalizationTests {
         let bundle = try bundle(for: language)
         // Tests run in English, so `summary` holds the source-language key.
         for symbol in StockSymbol.catalog {
-            #expect(bundle.localizedString(forKey: symbol.summary, value: nil, table: nil) != symbol.summary, "\(symbol.ticker) in \(language)")
+            #expect(bundle.localizedString(forKey: symbol.summary, value: Self.missing, table: nil) != Self.missing, "\(symbol.ticker) in \(language)")
         }
     }
 }

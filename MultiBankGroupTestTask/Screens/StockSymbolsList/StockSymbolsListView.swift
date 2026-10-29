@@ -41,6 +41,17 @@ private struct StockSymbolsList: View {
         }
         .listStyle(.plain)
         .animation(.default, value: store.sortedSymbols)
+        .refreshable { await store.refresh() }
+        .overlay {
+            if store.symbols.isEmpty && store.isLoadingSymbols {
+                ProgressView()
+            }
+        }
+        .task {
+            if store.symbols.isEmpty {
+                await store.loadSymbols()
+            }
+        }
     }
 }
 

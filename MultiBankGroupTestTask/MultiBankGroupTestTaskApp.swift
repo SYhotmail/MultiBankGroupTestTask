@@ -31,9 +31,9 @@ struct MultiBankGroupTestTaskApp: App {
 extension StockPriceStore {
     private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
-    /// Composition root: the catalog symbols fed by the Postman echo WebSocket.
+    /// Composition root: bundled symbols priced by the Postman echo WebSocket.
     static var live: StockPriceStore {
-        StockPriceStore(symbols: StockSymbol.catalog, feed: WebSocketPriceFeed(url: priceFeedURL, symbols: StockSymbol.catalog))
+        StockPriceStore(repository: BundledSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
     }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.

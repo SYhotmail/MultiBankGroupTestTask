@@ -51,6 +51,26 @@ struct PriceUpdateGeneratorTests {
             }
         }
     }
+
+    @Test func trackKeepsCurrentPricesAndAddsNewSymbolsAtReference() {
+        var generator = PriceUpdateGenerator(symbols: [.fixture("AAA", price: 10)], maxUpdatesPerBatch: 1, rng: SeededRandomNumberGenerator(seed: 5))
+        let moved = generator.next()[0].price
+
+        generator.track([.fixture("AAA", price: 10), .fixture("BBB", price: 50)])
+
+        // The first update after tracking moves each symbol at most 2% (plus a cent of rounding)
+        // from where it stood: AAA from its moved price, BBB from its reference price.
+        for update in generator.next() {
+            let base: Decimal = update.symbol == "AAA" ? moved : 50
+            #expect(abs(update.price - base) <= base * Decimal(0.02) + Decimal(0.01))
+        }
+        #expect(Set((0..<20).flatMap { _ in generator.next().map(\.symbol) }) == ["AAA", "BBB"])
+    }
+
+    @Test func emptySymbolListProducesNoUpdates() {
+        var generator = PriceUpdateGenerator(symbols: [], rng: SeededRandomNumberGenerator(seed: 1))
+        #expect(generator.next().isEmpty)
+    }
 }
 
 private extension Decimal {

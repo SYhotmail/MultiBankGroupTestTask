@@ -9,8 +9,8 @@ import Foundation
 
 /// Produces random-walk price updates for a random subset of symbols on each call.
 nonisolated struct PriceUpdateGenerator {
-    private let tickers: [String]
-    private var prices: [String: Decimal]
+    private var tickers: [String] = []
+    private var prices: [String: Decimal] = [:]
     private let maxChangeRatio: Double
     private let maxUpdatesPerBatch: Int
     private var rng: any RandomNumberGenerator
@@ -21,16 +21,28 @@ nonisolated struct PriceUpdateGenerator {
         maxUpdatesPerBatch: Int = 5,
         rng: any RandomNumberGenerator = SystemRandomNumberGenerator()
     ) {
-        precondition(!symbols.isEmpty, "Generator needs at least one symbol")
-        tickers = symbols.map(\.ticker)
-        prices = Dictionary(uniqueKeysWithValues: symbols.map { ($0.ticker, $0.referencePrice) })
         self.maxChangeRatio = maxChangeRatio
-        self.maxUpdatesPerBatch = max(1, min(maxUpdatesPerBatch, symbols.count))
+        self.maxUpdatesPerBatch = max(1, maxUpdatesPerBatch)
         self.rng = rng
+        track(symbols)
     }
 
+    /// Switches to a new symbol list. Symbols already tracked keep their current price; new ones
+    /// start at their reference price. Duplicate tickers keep the first occurrence.
+    mutating func track(_ symbols: [StockSymbol]) {
+        var newPrices: [String: Decimal] = [:]
+        tickers = symbols.compactMap { symbol in
+            guard newPrices[symbol.ticker] == nil else { return nil }
+            newPrices[symbol.ticker] = prices[symbol.ticker] ?? symbol.referencePrice
+            return symbol.ticker
+        }
+        prices = newPrices
+    }
+
+    /// Next batch of updates; empty when no symbols are tracked.
     mutating func next() -> [PriceUpdate] {
-        let count = Int.random(in: 1...maxUpdatesPerBatch, using: &rng)
+        guard !tickers.isEmpty else { return [] }
+        let count = Int.random(in: 1...min(maxUpdatesPerBatch, tickers.count), using: &rng)
         return tickers.shuffled(using: &rng).prefix(count).map { ticker in
             let price = nextPrice(after: prices[ticker, default: 0])
             prices[ticker] = price

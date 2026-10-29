@@ -17,6 +17,22 @@
         }
       }
     },
+    "Check your connection and try again." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحقّق من اتصالك وحاول مرة أخرى."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überprüfe deine Verbindung und versuche es erneut."
+          }
+        }
+      }
+    },
     "Connected" : {
       "localizations" : {
         "ar" : {
@@ -45,6 +61,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verbinden …"
+          }
+        }
+      }
+    },
+    "Connection Problem" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مشكلة في الاتصال"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindungsproblem"
+          }
+        }
+      }
+    },
+    "Couldn't Load Symbols" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر تحميل الرموز"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbole konnten nicht geladen werden"
           }
         }
       }
@@ -252,6 +300,22 @@
       },
       "comment" : "Description of CRM on the symbol detail screen."
     },
+    "Live prices are unavailable. The app will keep trying to reconnect." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الأسعار المباشرة غير متاحة. سيواصل التطبيق محاولة إعادة الاتصال."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live-Kurse sind nicht verfügbar. Die App versucht weiterhin, die Verbindung wiederherzustellen."
+          }
+        }
+      }
+    },
     "Makes creative and document software including Photoshop, Premiere Pro and Acrobat." : {
       "localizations" : {
         "ar" : {
@@ -285,6 +349,22 @@
         }
       },
       "comment" : "Description of TSLA on the symbol detail screen."
+    },
+    "OK" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حسنًا"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
     },
     "Operates Facebook, Instagram, WhatsApp and Messenger, and invests in virtual and augmented reality." : {
       "localizations" : {
@@ -518,6 +598,22 @@
         }
       },
       "comment" : "Description of IBM on the symbol detail screen."
+    },
+    "Retry" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة المحاولة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut versuchen"
+          }
+        }
+      }
     },
     "Runs ride-hailing, food delivery and freight logistics marketplaces." : {
       "localizations" : {

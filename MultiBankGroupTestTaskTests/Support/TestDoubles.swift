@@ -75,6 +75,8 @@ final class FakePriceFeed: PriceFeed {
     private(set) var stopCount = 0
     private(set) var suspendCount = 0
     private(set) var resumeCount = 0
+    private(set) var reconnectCount = 0
+    private(set) var trackedSymbols: [StockSymbol] = []
 
     init() {
         (events, continuation) = AsyncStream.makeStream()
@@ -84,6 +86,17 @@ final class FakePriceFeed: PriceFeed {
     func stop() { stopCount += 1 }
     func suspend() { suspendCount += 1 }
     func resume() { resumeCount += 1 }
+    func reconnect() { reconnectCount += 1 }
+    func track(_ symbols: [StockSymbol]) { trackedSymbols = symbols }
+}
+
+@MainActor
+final class FakeSymbolsRepository: SymbolsRepository {
+    var result: Result<[StockSymbol], Error> = .success([])
+
+    func fetchSymbols() async throws -> [StockSymbol] {
+        try result.get()
+    }
 }
 
 extension StockSymbol {
