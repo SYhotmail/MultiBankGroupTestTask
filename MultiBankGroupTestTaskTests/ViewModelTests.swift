@@ -151,133 +151,170 @@ struct StockSymbolDetailViewModelTests {
     }
 }
 
+/// The navigation view model builds its own `StockMarketModel`, so these tests drive it only through
+/// what it's given: the fake provider and the fake feed's event stream.
+@MainActor
+private struct NavigationFixture {
+    let catalog: [StockSymbolPrice] = [
+        .fixture("AAA", price: 10),
+        .fixture("BBB", price: 30),
+        .fixture("CCC", price: 20),
+    ]
+    let feed = FakePriceFeed()
+    let provider: FakeStockSymbolsProvider
+    let viewModel: StockSymbolsNavigationViewModel
+
+    init() {
+        provider = FakeStockSymbolsProvider(result: .success(catalog))
+        viewModel = StockSymbolsNavigationViewModel(provider: provider, feed: feed)
+    }
+
+    func load() async {
+        await viewModel.listViewModel.loadIfNeeded()
+    }
+
+    /// Delivers feed events and waits until the view model has applied them. Ends the feed's stream,
+    /// so use it once per test.
+    func deliver(_ events: [PriceFeedEvent]) async {
+        events.forEach { feed.continuation.yield($0) }
+        feed.continuation.finish()
+        await viewModel.observeFeed()
+    }
+}
+
 @MainActor
 struct StockSymbolsNavigationViewModelTests {
-    @Test func alertMirrorsTheModelIssue() {
-        let fixture = Fixture()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        #expect(viewModel.alert == nil)
+    @Test func alertMirrorsTheModelIssue() async {
+        let fixture = NavigationFixture()
+        #expect(fixture.viewModel.alert == nil)
 
-        fixture.market.apply(.connectionLost(reason: "test"))
+        await fixture.deliver([.connectionLost(reason: "test")])
 
-        #expect(viewModel.alert == .connectionLost)
+        #expect(fixture.viewModel.alert == .connectionLost)
+    }
+
+    @Test func alertDebugDescriptionMirrorsTheModel() async {
+        let fixture = NavigationFixture()
+
+        await fixture.deliver([.connectionLost(reason: "socket closed")])
+
+        #expect(fixture.viewModel.alertDebugDescription == "socket closed")
     }
 
     // MARK: - Selection
 
     @Test func selectingATickerShowsThatSymbol() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
 
-        viewModel.selectedTicker = "BBB"
+        fixture.viewModel.selectedTicker = "BBB"
 
-        #expect(viewModel.selectedTicker == "BBB")
-        #expect(viewModel.selectedSymbol == fixture.catalog[1].symbol)
+        #expect(fixture.viewModel.selectedTicker == "BBB")
+        #expect(fixture.viewModel.selectedSymbol == fixture.catalog[1].symbol)
     }
 
     @Test func selectionClearsWhenTheBackendDeletesTheSymbol() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        viewModel.selectedTicker = "BBB"
+        fixture.viewModel.selectedTicker = "BBB"
         await fixture.provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
 
-        await viewModel.detailViewModel(for: fixture.catalog[1].symbol).refresh()
+        await fixture.viewModel.detailViewModel(for: fixture.catalog[1].symbol).refresh()
 
-        #expect(viewModel.selectedTicker == nil)
-        #expect(viewModel.selectedSymbol == nil)
+        #expect(fixture.viewModel.selectedTicker == nil)
+        #expect(fixture.viewModel.selectedSymbol == nil)
     }
 
     @Test func selectionClearsWhenAListReloadDropsTheSymbol() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        viewModel.selectedTicker = "BBB"
+        fixture.viewModel.selectedTicker = "BBB"
         await fixture.provider.setResult(.success([fixture.catalog[0]]))
 
-        await viewModel.listViewModel.refresh()
+        await fixture.viewModel.listViewModel.refresh()
 
-        #expect(viewModel.selectedTicker == nil)
+        #expect(fixture.viewModel.selectedTicker == nil)
     }
 
     @Test func selectionOfAnUnknownTickerReadsAsNil() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
 
-        viewModel.selectedTicker = "ZZZ"
+        fixture.viewModel.selectedTicker = "ZZZ"
 
-        #expect(viewModel.selectedTicker == nil)
+        #expect(fixture.viewModel.selectedTicker == nil)
     }
 
-    @Test func alertDebugDescriptionMirrorsTheModel() {
-        let fixture = Fixture()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+    // MARK: - Alerts
 
-        fixture.market.apply(.connectionLost(reason: "socket closed"))
+    @Test func dismissClearsTheAlert() async {
+        let fixture = NavigationFixture()
+        await fixture.deliver([.connectionLost(reason: "test")])
 
-        #expect(viewModel.alertDebugDescription == "socket closed")
-    }
+        fixture.viewModel.dismissAlert()
 
-    @Test func dismissClearsTheIssue() {
-        let fixture = Fixture()
-        fixture.market.apply(.connectionLost(reason: "test"))
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-
-        viewModel.dismissAlert()
-
-        #expect(fixture.market.issue == nil)
+        #expect(fixture.viewModel.alert == nil)
+        #expect(fixture.viewModel.alertDebugDescription == nil)
     }
 
     @Test func retryingASymbolsIssueReloads() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.provider.setResult(.failure(TestError()))
         await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+        #expect(fixture.viewModel.alert == .symbolsUnavailable)
         await fixture.provider.setResult(.success(fixture.catalog))
 
-        await viewModel.retry(.symbolsUnavailable)
+        await fixture.viewModel.retry(.symbolsUnavailable)
 
-        #expect(viewModel.alert == nil)
-        #expect(fixture.market.symbols == fixture.catalog.map(\.symbol))
+        #expect(fixture.viewModel.alert == nil)
+        #expect(fixture.viewModel.listViewModel.rows.count == fixture.catalog.count)
     }
 
     @Test func retryingASymbolIssueRefreshesThatSymbol() async {
-        let fixture = Fixture()
+        let fixture = NavigationFixture()
         await fixture.load()
+        let detail = fixture.viewModel.detailViewModel(for: fixture.catalog[0].symbol)
         await fixture.provider.setSymbolResult(.failure(TestError()))
-        await fixture.market.refreshSymbol(ticker: "AAA")
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        #expect(viewModel.alert == .symbolUnavailable(ticker: "AAA"))
+        await detail.refresh()
+        #expect(fixture.viewModel.alert == .symbolUnavailable(ticker: "AAA"))
         await fixture.provider.setSymbolResult(.success(.fixture("AAA", name: "AAA Group", price: 10)))
 
-        await viewModel.retry(.symbolUnavailable(ticker: "AAA"))
+        await fixture.viewModel.retry(.symbolUnavailable(ticker: "AAA"))
 
-        #expect(viewModel.alert == nil)
-        #expect(fixture.market.symbol(ticker: "AAA")?.name == "AAA Group")
+        #expect(fixture.viewModel.alert == nil)
+        #expect(detail.symbol.name == "AAA Group")
     }
 
     @Test func retryingAConnectionIssueReconnects() async {
-        let fixture = Fixture()
-        fixture.market.apply(.connectionLost(reason: "test"))
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+        let fixture = NavigationFixture()
+        await fixture.deliver([.connectionLost(reason: "test")])
 
-        await viewModel.retry(.connectionLost)
+        await fixture.viewModel.retry(.connectionLost)
 
-        #expect(viewModel.alert == nil)
+        #expect(fixture.viewModel.alert == nil)
         #expect(await fixture.feed.reconnectCount == 1)
     }
 
-    @Test func detailViewModelsShareTheModel() async {
-        let fixture = Fixture()
-        await fixture.load()
-        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        let detail = viewModel.detailViewModel(for: fixture.catalog[0].symbol)
+    // MARK: - Shared model
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 9, timestamp: .fixture)]))
+    @Test func detailAndListViewModelsShareTheModel() async {
+        let fixture = NavigationFixture()
+        await fixture.load()
+        let detail = fixture.viewModel.detailViewModel(for: fixture.catalog[0].symbol)
+
+        await fixture.deliver([.priceUpdates([PriceUpdate(symbol: "AAA", price: 9, timestamp: .fixture)])])
 
         #expect(detail.quote?.price == 9)
-        #expect(viewModel.listViewModel.rows.first { $0.id == "AAA" }?.quote.price == 9)
+        #expect(fixture.viewModel.listViewModel.rows.first { $0.id == "AAA" }?.quote.price == 9)
+    }
+
+    @Test func lifecycleHooksReachTheFeed() async {
+        let fixture = NavigationFixture()
+
+        await fixture.viewModel.appDidEnterBackground()
+        await fixture.viewModel.appDidBecomeActive()
+
+        #expect(await fixture.feed.suspendCount == 1)
+        #expect(await fixture.feed.resumeCount == 1)
     }
 }

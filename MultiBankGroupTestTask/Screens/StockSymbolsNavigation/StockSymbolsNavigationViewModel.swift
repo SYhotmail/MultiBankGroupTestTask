@@ -8,9 +8,9 @@
 import Foundation
 import Observation
 
-/// Root of the screen hierarchy. Owns the shared `StockMarketModel` (nothing outside this view model
-/// touches it), the list view model and the selection that drives the detail column, and turns model
-/// issues into alerts shown above whichever column is visible.
+/// Root of the screen hierarchy. Creates and owns the shared `StockMarketModel` from the services it's
+/// given (nothing outside this view model sees the model), the list view model and the selection that
+/// drives the detail column, and turns model issues into alerts shown above whichever column is visible.
 @MainActor
 @Observable
 final class StockSymbolsNavigationViewModel {
@@ -19,7 +19,8 @@ final class StockSymbolsNavigationViewModel {
     private let market: StockMarketModel
     private var storedSelection: String?
 
-    init(market: StockMarketModel) {
+    init(provider: any StockSymbolsProvider, feed: any PriceFeed) {
+        let market = StockMarketModel(provider: provider, feed: feed)
         self.market = market
         listViewModel = StockSymbolsListViewModel(market: market)
     }

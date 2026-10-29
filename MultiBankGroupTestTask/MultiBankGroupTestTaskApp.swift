@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct MultiBankGroupTestTaskApp: App {
-    @State private var navigationViewModel = StockSymbolsNavigationViewModel(market: .live)
+    @State private var navigationViewModel = StockSymbolsNavigationViewModel.live
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -27,14 +27,14 @@ struct MultiBankGroupTestTaskApp: App {
     }
 }
 
-extension StockMarketModel {
+extension StockSymbolsNavigationViewModel {
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
-    static var live: StockMarketModel { preview }
+    static var live: StockSymbolsNavigationViewModel { preview }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
-    static var preview: StockMarketModel {
+    static var preview: StockSymbolsNavigationViewModel {
         let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
-        return StockMarketModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
     }
 }

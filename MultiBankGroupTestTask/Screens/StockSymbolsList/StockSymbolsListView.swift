@@ -80,6 +80,6 @@ struct StockSymbolRow: View {
 
 #Preview {
     NavigationStack {
-        StockSymbolsListView(viewModel: StockSymbolsListViewModel(market: .preview), selection: .constant(nil))
+        StockSymbolsListView(viewModel: StockSymbolsNavigationViewModel.preview.listViewModel, selection: .constant(nil))
     }
 }

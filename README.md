@@ -85,7 +85,7 @@ One per screen, each adapting the shared model for its view:
 
 | ViewModel | Exposes | Actions |
 |---|---|---|
-| `StockSymbolsNavigationViewModel` | Owns the `StockMarketModel`; `listViewModel`, `selectedTicker` / `selectedSymbol` for the detail column (reads as `nil` once the symbol is deleted), `alert`; builds detail view models | `dismissAlert()`, `retry(_:)` — reload symbols, refresh the symbol or reconnect; `observeFeed()` and lifecycle hooks for the app |
+| `StockSymbolsNavigationViewModel` | Creates and owns the `StockMarketModel` from a provider and a feed; `listViewModel`, `selectedTicker` / `selectedSymbol` for the detail column (reads as `nil` once the symbol is deleted), `alert`; builds detail view models | `dismissAlert()`, `retry(_:)` — reload symbols, refresh the symbol or reconnect; `observeFeed()` and lifecycle hooks for the app |
 | `StockSymbolsListViewModel` | `sortOrder` (screen state), sorted `rows`, `connectionState`, `showsLoadingIndicator` | `toggleFeed()`, `refresh()`, `loadIfNeeded()` |
 | `StockSymbolDetailViewModel` | `symbol`, live `quote`, `connectionState` | `toggleFeed()` |
 
@@ -97,7 +97,7 @@ Views only render what their view model exposes and forward user actions to it. 
 
 ### Composition root
 
-`MultiBankGroupTestTaskApp` creates the root view model with the live model (`StockMarketModel.live`: bundled symbols, Postman echo feed) and holds only that view model: it starts `observeFeed()` and forwards scene-phase changes through it. The model is owned by the navigation view model; screens reach it only through their view models. Dependencies are passed through initializers rather than the SwiftUI environment, so each view model's inputs are explicit.
+`MultiBankGroupTestTaskApp` creates the root view model from the live services (`StockSymbolsNavigationViewModel.live`: bundled symbols, Postman echo feed) and holds only that view model: it starts `observeFeed()` and forwards scene-phase changes through it. The navigation view model builds the `StockMarketModel` itself from the provider and feed it's given and passes it only to the list and detail view models it creates; nothing else sees the model. Previews use `StockSymbolsNavigationViewModel.preview` the same way. Dependencies are passed through initializers rather than the SwiftUI environment, so each view model's inputs are explicit.
 
 ### Key decisions
 
@@ -153,7 +153,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 | `StockSymbolsListViewModelTests` | Both sort orders with tie-break; rows carry live quotes; load-once; refresh; toggle and connection state through the model. |
 | `StockSymbolDetailViewModelTests` | Quote follows live updates; nil once a refresh removes the symbol; refresh shows the backend's latest details; toggle stops a running feed. |
 | `StockSymbolsProviderTests` | The bundled provider behaves like the endpoints: list, fetch by id, `notFound` for unknown ids. |
-| `StockSymbolsNavigationViewModelTests` | Selection shows the symbol and clears after a `404`, a list reload without it, or for an unknown ticker; alert mirrors the model issue; dismiss; retry reloads the list, refreshes the symbol or reconnects; detail and list view models share live data. |
+| `StockSymbolsNavigationViewModelTests` | Driven only through the fake provider and feed (the model is internal). Selection shows the symbol and clears after a `404`, a list reload without it, or for an unknown ticker; alert mirrors the model issue; dismiss; retry reloads the list, refreshes the symbol or reconnects; detail and list view models share live data. |
 | `LocalizationTests` | Every UI string and symbol description has a German and Arabic entry, so untranslated text can't ship silently. |
 
 ## Source control
