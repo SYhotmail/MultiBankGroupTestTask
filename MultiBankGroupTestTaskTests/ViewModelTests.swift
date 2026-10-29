@@ -110,18 +110,23 @@ struct StockSymbolsListViewModelTests {
         fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 40, timestamp: .fixture)]))
         #expect(fixture.list.rows.map(\.id) == ["AAA", "BBB", "CCC"])
 
+        // A newer price from the backend (a detail refresh) reorders the rows too.
+        fixture.market.applyIfNewer(.fixture("CCC", price: 50, at: .fixture.addingTimeInterval(1)))
+        #expect(fixture.list.rows.map(\.id) == ["CCC", "AAA", "BBB"])
+
         await fixture.list.remove(ticker: "BBB")
-        #expect(fixture.list.rows.map(\.id) == ["AAA", "CCC"])
+        #expect(fixture.list.rows.map(\.id) == ["CCC", "AAA"])
     }
 
-    @Test func unchangedRowsAreNotRebuilt() async {
+    @Test func rowsAreNotRebuiltForUnrelatedChanges() async {
         let fixture = Fixture()
         await fixture.load()
 
         let first = fixture.list.rows
+        fixture.market.apply(.connectionChanged(.connected))
         let second = fixture.list.rows
 
-        // The same cached array: both copies share one buffer. A rebuild would allocate a new one.
+        // The same stored array: both copies share one buffer. A rebuild would allocate a new one.
         #expect(first.withUnsafeBufferPointer(\.baseAddress) == second.withUnsafeBufferPointer(\.baseAddress))
     }
 

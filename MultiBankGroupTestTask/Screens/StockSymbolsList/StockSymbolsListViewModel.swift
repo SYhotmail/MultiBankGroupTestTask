@@ -26,42 +26,31 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         var id: String { symbol.ticker }
     }
     
-    /// Everything `rows` depends on.
-    private struct RowsInput: Equatable {
-        let symbols: [StockSymbol]
-        let quotes: [String: StockQuote]
-        let sortOrder: SortOrder
+    var sortOrder: SortOrder = .price {
+        didSet { updateRows() }
     }
-
-    var sortOrder: SortOrder = .price
-    private(set) var symbols: [StockSymbol] = []
+    private(set) var symbols: [StockSymbol] = [] {
+        didSet { updateRows() }
+    }
     private(set) var isLoading = false
-
-    /// The last `rows` result and what it was built from. Ignored by observation: it's a cache, written
-    /// while a view reads `rows`, and its inputs are observed anyway.
-    @ObservationIgnored private var rowsCache: (input: RowsInput, rows: [Row])?
 
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
     ///
-    /// Rebuilt only when the symbols, their quotes or the sort order change, not on every read (e.g. when
-    /// the view redraws for the connection status). A price update still rebuilds them: it can reorder rows.
-    /// Checking for changes is cheap: unchanged arrays and dictionaries share storage, so `==` returns early.
-    var rows: [Row] {
-        let input = RowsInput(symbols: symbols, quotes: market.quotes, sortOrder: sortOrder)
-        if let rowsCache, rowsCache.input == input {
-            return rowsCache.rows
-        }
-        let rows = input.symbols
-            .compactMap { symbol in input.quotes[symbol.ticker].map { Row(symbol: symbol, quote: $0) } }
-            .sorted { lhs, rhs in
-                let (lhsValue, rhsValue) = switch input.sortOrder {
-                case .price: (lhs.quote.price, rhs.quote.price)
-                case .priceChange: (lhs.quote.change, rhs.quote.change)
-                }
-                return lhsValue == rhsValue ? lhs.id < rhs.id : lhsValue > rhsValue
-            }
-        rowsCache = (input, rows)
-        return rows
+    /// Stored, not computed: rebuilt only when the symbols, their quotes or the sort order change, so a
+    /// redraw for anything else (e.g. the connection status) reads it as is. A price update still rebuilds
+    /// it, since a new price can reorder the rows.
+    private(set) var rows: [Row] = []
+
+    override init(
+        provider: any StockSymbolsProvider,
+        market: StockSymbolsMarketModel,
+        feed: any PriceFeed,
+        logger: Logger,
+        onIssue: StockSymbolsIssueHandler? = nil
+    ) {
+        super.init(provider: provider, market: market, feed: feed, logger: logger, onIssue: onIssue)
+        // Weak: the navigation view model owns both the market and this list.
+        market.onQuotesChanged = { [weak self] in self?.updateRows() }
     }
 
     /// Spinner only while the very first load is in flight; a refresh keeps the current rows.
@@ -102,6 +91,19 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
             logger.error("Couldn't load symbols: \(String(reflecting: error))")
             onIssue?(.symbolsUnavailable, String(reflecting: error))
         }
+    }
+
+    private func updateRows() {
+        let quotes = market.quotes
+        rows = symbols
+            .compactMap { symbol in quotes[symbol.ticker].map { Row(symbol: symbol, quote: $0) } }
+            .sorted { lhs, rhs in
+                let (lhsValue, rhsValue) = switch sortOrder {
+                case .price: (lhs.quote.price, rhs.quote.price)
+                case .priceChange: (lhs.quote.change, rhs.quote.change)
+                }
+                return lhsValue == rhsValue ? lhs.id < rhs.id : lhsValue > rhsValue
+            }
     }
 
     /// Takes newer details for a listed symbol (e.g. from a detail refresh).
