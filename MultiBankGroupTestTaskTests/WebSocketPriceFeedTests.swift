@@ -242,9 +242,22 @@ struct WebSocketPriceFeedTests {
 
         var lostCount = 0
         while let event = await events.next(), event != .connectionChanged(.connected) {
-            if event == .connectionLost { lostCount += 1 }
+            if case .connectionLost = event { lostCount += 1 }
         }
         #expect(lostCount == 1)
+    }
+
+    @Test func connectionLostCarriesTheUnderlyingError() async {
+        let (feed, _) = makeFeed { connection, _ in connection.connectError = TestError() }
+        var events = feed.events.makeAsyncIterator()
+        await feed.start()
+
+        while let event = await events.next() {
+            guard case .connectionLost(let reason) = event else { continue }
+            #expect(reason.contains("TestError"))
+            break
+        }
+        await feed.stop()
     }
 
     @Test func reconnectSkipsTheBackoffWait() async {
@@ -253,7 +266,9 @@ struct WebSocketPriceFeedTests {
         }
         var events = feed.events.makeAsyncIterator()
         await feed.start()
-        while let event = await events.next(), event != .connectionLost {}
+        while let event = await events.next() {
+            if case .connectionLost = event { break }
+        }
 
         // Without reconnect() the next attempt would wait about a minute.
         await feed.reconnect()

@@ -181,14 +181,23 @@ struct StockSymbolsNavigationViewModelTests {
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
         #expect(viewModel.alert == nil)
 
-        fixture.market.apply(.connectionLost)
+        fixture.market.apply(.connectionLost(reason: "test"))
 
         #expect(viewModel.alert == .connectionLost)
     }
 
+    @Test func alertDebugDescriptionMirrorsTheModel() {
+        let fixture = Fixture()
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+
+        fixture.market.apply(.connectionLost(reason: "socket closed"))
+
+        #expect(viewModel.alertDebugDescription == "socket closed")
+    }
+
     @Test func dismissClearsTheIssue() {
         let fixture = Fixture()
-        fixture.market.apply(.connectionLost)
+        fixture.market.apply(.connectionLost(reason: "test"))
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
 
         viewModel.dismissAlert()
@@ -226,7 +235,7 @@ struct StockSymbolsNavigationViewModelTests {
 
     @Test func retryingAConnectionIssueReconnects() async {
         let fixture = Fixture()
-        fixture.market.apply(.connectionLost)
+        fixture.market.apply(.connectionLost(reason: "test"))
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
 
         await viewModel.retry(.connectionLost)

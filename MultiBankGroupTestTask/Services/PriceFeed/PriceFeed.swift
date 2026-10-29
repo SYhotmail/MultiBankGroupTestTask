@@ -11,7 +11,8 @@ enum PriceFeedEvent: Equatable, Sendable {
     case connectionChanged(ConnectionState)
     case priceUpdates([PriceUpdate])
     /// The live connection failed. Sent once per outage; the feed keeps retrying on its own.
-    case connectionLost
+    /// `reason` describes the underlying error, for debugging.
+    case connectionLost(reason: String)
 }
 
 /// A source of live prices that can be started and stopped. An actor, so feed work never runs on
@@ -157,7 +158,7 @@ actor WebSocketPriceFeed: PriceFeed {
                 guard !Task.isCancelled else { return }
                 failures += 1
                 if failures == 1 {
-                    continuation.yield(.connectionLost)
+                    continuation.yield(.connectionLost(reason: String(reflecting: error)))
                 }
                 continuation.yield(.connectionChanged(.connecting))
                 try? await Task.sleep(for: reconnectPolicy.delay(afterFailures: failures, jitter: .random(in: 0.5...1)))

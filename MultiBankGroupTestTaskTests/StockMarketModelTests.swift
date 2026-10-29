@@ -150,20 +150,20 @@ struct StockMarketModelTests {
         await provider.setResult(.failure(TestError()))
         await model.loadSymbols()
 
-        model.apply(.connectionLost)
+        model.apply(.connectionLost(reason: "test"))
 
         #expect(model.issue == .symbolsUnavailable)
     }
 
     @Test func connectionLostRaisesIssue() async {
         let model = await makeModel()
-        model.apply(.connectionLost)
+        model.apply(.connectionLost(reason: "test"))
         #expect(model.issue == .connectionLost)
     }
 
     @Test func clearIssueRemovesIt() async {
         let model = await makeModel()
-        model.apply(.connectionLost)
+        model.apply(.connectionLost(reason: "test"))
 
         model.clearIssue()
 
@@ -233,5 +233,53 @@ struct StockMarketModelTests {
         #expect(await feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
         // A deletion is not an error.
         #expect(model.issue == nil)
+    }
+
+    // MARK: - Debug descriptions
+
+    @Test func failedLoadKeepsTheUnderlyingError() async {
+        let model = await makeModel()
+        await provider.setResult(.failure(TestError()))
+
+        await model.loadSymbols()
+
+        #expect(model.issueDebugDescription?.contains("TestError") == true)
+    }
+
+    @Test func failedRefreshKeepsTheUnderlyingError() async {
+        let model = await makeModel()
+        await provider.setSymbolResult(.failure(TestError()))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.issueDebugDescription?.contains("TestError") == true)
+    }
+
+    @Test func connectionLostKeepsTheFeedsReason() async {
+        let model = await makeModel()
+
+        model.apply(.connectionLost(reason: "socket closed"))
+
+        #expect(model.issueDebugDescription == "socket closed")
+    }
+
+    @Test func anUnseenIssueKeepsItsOwnDescription() async {
+        let model = await makeModel()
+        model.apply(.connectionLost(reason: "first"))
+        await provider.setSymbolResult(.failure(TestError()))
+
+        await model.refreshSymbol(ticker: "BBB")
+
+        #expect(model.issue == .connectionLost)
+        #expect(model.issueDebugDescription == "first")
+    }
+
+    @Test func clearIssueAlsoClearsTheDescription() async {
+        let model = await makeModel()
+        model.apply(.connectionLost(reason: "first"))
+
+        model.clearIssue()
+
+        #expect(model.issueDebugDescription == nil)
     }
 }
