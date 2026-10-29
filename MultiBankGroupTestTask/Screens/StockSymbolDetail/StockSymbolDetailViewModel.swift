@@ -13,8 +13,8 @@ import Observation
 @MainActor
 @Observable
 final class StockSymbolDetailViewModel {
-    @ObservationIgnored private let initialSymbol: StockSymbol
-    @ObservationIgnored private let market: StockMarketModel
+    private let initialSymbol: StockSymbol
+    private let market: StockMarketModel
 
     init(symbol: StockSymbol, market: StockMarketModel) {
         initialSymbol = symbol
