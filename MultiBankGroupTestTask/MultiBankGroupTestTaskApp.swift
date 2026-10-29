@@ -9,33 +9,39 @@ import SwiftUI
 
 @main
 struct MultiBankGroupTestTaskApp: App {
-    @State private var store = AppStore.live
+    @State private var market: StockMarketModel
+    @State private var navigationViewModel: StockSymbolsNavigationViewModel
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        let market = StockMarketModel.live
+        _market = State(initialValue: market)
+        _navigationViewModel = State(initialValue: StockSymbolsNavigationViewModel(market: market))
+    }
 
     var body: some Scene {
         WindowGroup {
-            StockSymbolsNavigationStackView()
-                .environment(store)
-                .task { await store.observeFeed() }
+            StockSymbolsNavigationStackView(viewModel: navigationViewModel)
+                .task { await market.observeFeed() }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .background: store.send(.appEnteredBackground)
-            case .active: store.send(.appBecameActive)
+            case .background: market.appDidEnterBackground()
+            case .active: market.appDidBecomeActive()
             default: break
             }
         }
     }
 }
 
-extension AppStore {
+extension StockMarketModel {
     private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
-    static var live: AppStore {
-        AppStore(repository: BundledSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+    static var live: StockMarketModel {
+        StockMarketModel(repository: BundledSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
     }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
-    static var preview: AppStore { live }
+    static var preview: StockMarketModel { live }
 }

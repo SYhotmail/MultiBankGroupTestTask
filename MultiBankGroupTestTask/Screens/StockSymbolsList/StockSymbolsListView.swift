@@ -8,19 +8,19 @@
 import SwiftUI
 
 struct StockSymbolsListView: View {
-    @Environment(AppStore.self) private var store
+    @Bindable var viewModel: StockSymbolsListViewModel
 
     var body: some View {
         // Rows live in a child view so price ticks don't rebuild the toolbar (and dismiss the sort menu).
-        StockSymbolsList(store: store)
+        StockSymbolsList(viewModel: viewModel)
             .navigationTitle("Stocks")
             .toolbar {
-                FeedToolbar(store: store)
+                FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed)
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                        Picker("Sort by", selection: Binding(get: { store.sortOrder }, set: { store.send(.sortOrderChanged($0)) })) {
-                            Label("Price", systemImage: "dollarsign").tag(AppState.SortOrder.price)
-                            Label("Price Change", systemImage: "plusminus").tag(AppState.SortOrder.priceChange)
+                        Picker("Sort by", selection: $viewModel.sortOrder) {
+                            Label("Price", systemImage: "dollarsign").tag(StockSymbolsListViewModel.SortOrder.price)
+                            Label("Price Change", systemImage: "plusminus").tag(StockSymbolsListViewModel.SortOrder.priceChange)
                         }
                     }
                 }
@@ -29,28 +29,24 @@ struct StockSymbolsListView: View {
 }
 
 private struct StockSymbolsList: View {
-    let store: AppStore
+    let viewModel: StockSymbolsListViewModel
 
     var body: some View {
-        let state = store.state
-        List(state.sortedSymbols) { symbol in
-            NavigationLink(value: symbol) {
-                StockSymbolRow(symbol: symbol, quote: state.quote(for: symbol))
+        let rows = viewModel.rows
+        List(rows) { row in
+            NavigationLink(value: row.symbol) {
+                StockSymbolRow(symbol: row.symbol, quote: row.quote)
             }
         }
         .listStyle(.plain)
-        .animation(.default, value: state.sortedSymbols)
-        .refreshable { await store.send(.refreshRequested).value }
+        .animation(.default, value: rows.map(\.id))
+        .refreshable { await viewModel.refresh() }
         .overlay {
-            if store.symbols.isEmpty && store.isLoadingSymbols {
+            if viewModel.showsLoadingIndicator {
                 ProgressView()
             }
         }
-        .task {
-            if store.symbols.isEmpty {
-                await store.send(.loadSymbols).value
-            }
-        }
+        .task { await viewModel.loadIfNeeded() }
     }
 }
 
@@ -81,7 +77,6 @@ struct StockSymbolRow: View {
 
 #Preview {
     NavigationStack {
-        StockSymbolsListView()
+        StockSymbolsListView(viewModel: StockSymbolsListViewModel(market: .preview))
     }
-    .environment(AppStore.preview)
 }
