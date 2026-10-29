@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StockSymbolDetailView: View {
     let viewModel: StockSymbolDetailViewModel
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let symbol = viewModel.symbol
@@ -41,6 +42,11 @@ struct StockSymbolDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
+        }
+        .refreshable { await viewModel.refresh() }
+        // A deleted symbol has nothing left to show: go back to the list.
+        .onChange(of: viewModel.isDeleted, initial: true) { _, isDeleted in
+            if isDeleted { dismiss() }
         }
         .navigationTitle(symbol.ticker)
         .toolbar { FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed) }

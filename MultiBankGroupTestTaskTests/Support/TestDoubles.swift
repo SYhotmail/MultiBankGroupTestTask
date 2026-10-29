@@ -142,8 +142,10 @@ actor FakePriceFeed: PriceFeed {
     func track(_ symbolPrices: [StockSymbolPrice]) { trackedSymbols = symbolPrices }
 }
 
-actor FakeSymbolsRepository: SymbolsRepository {
+actor FakeStockSymbolsRepository: StockSymbolsRepository {
     private var result: Result<[StockSymbolPrice], any Error>
+    /// When set, answers `fetchStockSymbol(id:)`; otherwise it looks the id up in `result`.
+    private var symbolResult: Result<StockSymbolPrice, any Error>?
 
     init(result: Result<[StockSymbolPrice], any Error> = .success([])) {
         self.result = result
@@ -153,8 +155,20 @@ actor FakeSymbolsRepository: SymbolsRepository {
         self.result = result
     }
 
-    func fetchSymbols() async throws -> [StockSymbolPrice] {
+    func setSymbolResult(_ result: Result<StockSymbolPrice, any Error>) {
+        symbolResult = result
+    }
+
+    func fetchStockSymbols() async throws -> [StockSymbolPrice] {
         try result.get()
+    }
+
+    func fetchStockSymbol(id: String) async throws -> StockSymbolPrice {
+        if let symbolResult { return try symbolResult.get() }
+        guard let match = try result.get().first(where: { $0.symbol.ticker == id }) else {
+            throw StockSymbolsRepositoryError.notFound(id: id)
+        }
+        return match
     }
 }
 
@@ -172,7 +186,13 @@ extension StockSymbol {
 }
 
 extension StockSymbolPrice {
-    static func fixture(_ ticker: String, price: Decimal, at timestamp: Date = .referenceFixture) -> StockSymbolPrice {
-        StockSymbolPrice(symbol: .fixture(ticker), price: price, timestamp: timestamp)
+    static func fixture(
+        _ ticker: String,
+        name: String? = nil,
+        price: Decimal,
+        at timestamp: Date = .referenceFixture
+    ) -> StockSymbolPrice {
+        let symbol = StockSymbol(ticker: ticker, name: name ?? "\(ticker) Inc.", summary: "")
+        return StockSymbolPrice(symbol: symbol, price: price, timestamp: timestamp)
     }
 }

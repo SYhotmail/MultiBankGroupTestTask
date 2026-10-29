@@ -37,13 +37,14 @@ private extension StockMarketModel.Issue {
     var title: LocalizedStringKey {
         switch self {
         case .symbolsUnavailable: "Couldn't Load Symbols"
+        case .symbolUnavailable(let ticker): "Couldn't Refresh \(ticker)"
         case .connectionLost: "Connection Problem"
         }
     }
 
     var message: LocalizedStringKey {
         switch self {
-        case .symbolsUnavailable: "Check your connection and try again."
+        case .symbolsUnavailable, .symbolUnavailable: "Check your connection and try again."
         case .connectionLost: "Live prices are unavailable. The app will keep trying to reconnect."
         }
     }
