@@ -1,5 +1,5 @@
 //
-//  StockSymbolsNavigationStackView.swift
+//  StockSymbolsNavigationView.swift
 //  MultiBankGroupTestTask
 //
 //  Created by Siarhei Yakushevich on 28/10/2026.
@@ -7,15 +7,22 @@
 
 import SwiftUI
 
-struct StockSymbolsNavigationStackView: View {
-    let viewModel: StockSymbolsNavigationViewModel
+struct StockSymbolsNavigationView: View {
+    @Bindable var viewModel: StockSymbolsNavigationViewModel
 
     var body: some View {
-        NavigationStack {
-            StockSymbolsListView(viewModel: viewModel.listViewModel)
-                .navigationDestination(for: StockSymbol.self) { symbol in
-                    StockSymbolDetailView(viewModel: viewModel.detailViewModel(for: symbol))
-                }
+        // Sidebar list + detail column on iPad; collapses to a push-style stack on iPhone.
+        NavigationSplitView {
+            StockSymbolsListView(viewModel: viewModel.listViewModel, selection: $viewModel.selectedTicker)
+                // Wide enough for the title next to the status, Start/Stop and Sort controls.
+                .navigationSplitViewColumnWidth(min: 340, ideal: 400, max: 480)
+        } detail: {
+            if let symbol = viewModel.selectedSymbol {
+                StockSymbolDetailView(viewModel: viewModel.detailViewModel(for: symbol))
+                    .id(symbol.ticker)
+            } else {
+                ContentUnavailableView("Select a Symbol", systemImage: "chart.line.uptrend.xyaxis")
+            }
         }
         // Attached at the root so alerts show on whichever screen is visible.
         .alert(
@@ -61,5 +68,5 @@ private extension StockMarketModel.Issue {
 }
 
 #Preview {
-    StockSymbolsNavigationStackView(viewModel: StockSymbolsNavigationViewModel(market: .preview))
+    StockSymbolsNavigationView(viewModel: StockSymbolsNavigationViewModel(market: .preview))
 }

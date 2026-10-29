@@ -9,10 +9,12 @@ import SwiftUI
 
 struct StockSymbolsListView: View {
     @Bindable var viewModel: StockSymbolsListViewModel
+    /// Ticker of the selected row; drives the split view's detail column.
+    @Binding var selection: String?
 
     var body: some View {
         // Rows live in a child view so price ticks don't rebuild the toolbar (and dismiss the sort menu).
-        StockSymbolsList(viewModel: viewModel)
+        StockSymbolsList(viewModel: viewModel, selection: $selection)
             .navigationTitle("Stocks")
             .toolbar {
                 FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed)
@@ -30,11 +32,12 @@ struct StockSymbolsListView: View {
 
 private struct StockSymbolsList: View {
     let viewModel: StockSymbolsListViewModel
+    @Binding var selection: String?
 
     var body: some View {
         let rows = viewModel.rows
-        List(rows) { row in
-            NavigationLink(value: row.symbol) {
+        List(rows, selection: $selection) { row in
+            NavigationLink(value: row.id) {
                 StockSymbolRow(symbol: row.symbol, quote: row.quote)
             }
         }
@@ -77,6 +80,6 @@ struct StockSymbolRow: View {
 
 #Preview {
     NavigationStack {
-        StockSymbolsListView(viewModel: StockSymbolsListViewModel(market: .preview))
+        StockSymbolsListView(viewModel: StockSymbolsListViewModel(market: .preview), selection: .constant(nil))
     }
 }

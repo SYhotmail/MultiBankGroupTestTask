@@ -128,29 +128,6 @@ struct StockSymbolDetailViewModelTests {
         #expect(viewModel.quote == nil)
     }
 
-    @Test func isDeletedWhenTheBackendNoLongerHasTheSymbol() async {
-        let fixture = Fixture()
-        await fixture.load()
-        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
-        #expect(!viewModel.isDeleted)
-        await fixture.provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
-
-        await viewModel.refresh()
-
-        #expect(viewModel.isDeleted)
-    }
-
-    @Test func isDeletedWhenAListReloadDropsTheSymbol() async {
-        let fixture = Fixture()
-        await fixture.load()
-        let viewModel = StockSymbolDetailViewModel(symbol: fixture.catalog[1].symbol, market: fixture.market)
-        await fixture.provider.setResult(.success([fixture.catalog[0]]))
-
-        await fixture.market.loadSymbols()
-
-        #expect(viewModel.isDeleted)
-    }
-
     @Test func refreshShowsTheBackendsLatestDetails() async {
         let fixture = Fixture()
         await fixture.load()
@@ -184,6 +161,54 @@ struct StockSymbolsNavigationViewModelTests {
         fixture.market.apply(.connectionLost(reason: "test"))
 
         #expect(viewModel.alert == .connectionLost)
+    }
+
+    // MARK: - Selection
+
+    @Test func selectingATickerShowsThatSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+
+        viewModel.selectedTicker = "BBB"
+
+        #expect(viewModel.selectedTicker == "BBB")
+        #expect(viewModel.selectedSymbol == fixture.catalog[1].symbol)
+    }
+
+    @Test func selectionClearsWhenTheBackendDeletesTheSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+        viewModel.selectedTicker = "BBB"
+        await fixture.provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
+
+        await viewModel.detailViewModel(for: fixture.catalog[1].symbol).refresh()
+
+        #expect(viewModel.selectedTicker == nil)
+        #expect(viewModel.selectedSymbol == nil)
+    }
+
+    @Test func selectionClearsWhenAListReloadDropsTheSymbol() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+        viewModel.selectedTicker = "BBB"
+        await fixture.provider.setResult(.success([fixture.catalog[0]]))
+
+        await viewModel.listViewModel.refresh()
+
+        #expect(viewModel.selectedTicker == nil)
+    }
+
+    @Test func selectionOfAnUnknownTickerReadsAsNil() async {
+        let fixture = Fixture()
+        await fixture.load()
+        let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
+
+        viewModel.selectedTicker = "ZZZ"
+
+        #expect(viewModel.selectedTicker == nil)
     }
 
     @Test func alertDebugDescriptionMirrorsTheModel() {

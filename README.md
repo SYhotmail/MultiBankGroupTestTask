@@ -18,7 +18,10 @@ Built with SwiftUI, Swift Concurrency (Swift 6 language mode, complete data-race
 - Ticker as the title, company name, live price with the same indicator as the list, and a description.
 - Shares the list's live data, so prices update in real time on both screens.
 - Pull-to-refresh re-fetches the symbol from the backend (`GET /symbols/{id}`): its details, and its price when the backend's is newer than the live one.
-- If the symbol is deleted — the backend answers `404`, or a list reload no longer includes it — the screen closes and the symbol leaves the list.
+- If the symbol is deleted — the backend answers `404`, or a list reload no longer includes it — the selection clears: the detail closes on iPhone and shows a placeholder on iPad, and the symbol leaves the list.
+
+**Navigation**
+- `NavigationSplitView`: the list in the sidebar and the selected symbol in the detail column on iPad; it collapses to a push-style stack on iPhone. Side by side, the detail column leaves the Start/Stop control and status to the list's toolbar.
 
 **Resilience**
 - Automatic reconnect with exponential backoff and jitter (1 s → 30 s) after a failed connect, a dropped socket or an echo that doesn't arrive within 10 s.
@@ -56,7 +59,7 @@ The app follows **MVVM** (Model–View–ViewModel):
 ```
  Views (SwiftUI)                 ViewModels (@Observable)                 Model
  ───────────────                 ────────────────────────                 ─────
- StockSymbolsNavigationStackView ─▶ StockSymbolsNavigationViewModel ─┐
+ StockSymbolsNavigationView ──────▶ StockSymbolsNavigationViewModel ─┐
  StockSymbolsListView ───────────▶ StockSymbolsListViewModel ────────┼──▶ StockMarketModel ──▶ PriceFeed ──▶ WebSocketConnection
  StockSymbolDetailView ──────────▶ StockSymbolDetailViewModel ───────┘          │
                                                                                 └──────────▶ StockSymbolsProvider
@@ -74,7 +77,7 @@ Below it sit the services:
 | `FeedMessageCodec` | The one place that fixes the message format: a JSON array of `PriceUpdate`s (`Codable`) as UTF-8 bytes (`Data`), ISO 8601 dates. The connection sends them as text frames (JSON is text, and the echo server closes the socket on binary frames) and accepts text or binary frames back. |
 | `PriceUpdateGenerator` | Seedable random walk (±2% per tick, rounded to cents) for a random subset of tracked symbols. |
 | `WebSocketConnection` | Thin protocol over `URLSessionWebSocketTask`; swapped for an in-memory echo in tests. |
-| `StockSymbolsProvider` (`Sendable`) | The symbols backend API: `fetchStockSymbols()` (`GET /symbols`) and `fetchStockSymbol(id:)` (`GET /symbols/{id}`, throws `notFound`). `BundledStockSymbolsProvider` (stateless `Sendable` struct with `@concurrent` methods) serves the built-in catalog with simulated latency; a network-backed implementation can replace it without touching the UI. |
+| `StockSymbolsProvider` (`Sendable`) | The symbols backend API: `fetchStockSymbols()` (`GET /symbols`) and `fetchStockSymbol(id:)` (`GET /symbols/{id}`, throws `notFound`). `BundledStockSymbolsRepository` (stateless `Sendable` struct with `@concurrent` methods) serves the built-in catalog with simulated latency; a network-backed implementation can replace it without touching the UI. |
 
 ### ViewModels
 
@@ -82,7 +85,7 @@ One per screen, each adapting the shared model for its view:
 
 | ViewModel | Exposes | Actions |
 |---|---|---|
-| `StockSymbolsNavigationViewModel` | `listViewModel`, `alert`; builds detail view models | `dismissAlert()`, `retry(_:)` — reload symbols or reconnect |
+| `StockSymbolsNavigationViewModel` | Owns the `StockMarketModel`; `listViewModel`, `selectedTicker` / `selectedSymbol` for the detail column (reads as `nil` once the symbol is deleted), `alert`; builds detail view models | `dismissAlert()`, `retry(_:)` — reload symbols, refresh the symbol or reconnect; `observeFeed()` and lifecycle hooks for the app |
 | `StockSymbolsListViewModel` | `sortOrder` (screen state), sorted `rows`, `connectionState`, `showsLoadingIndicator` | `toggleFeed()`, `refresh()`, `loadIfNeeded()` |
 | `StockSymbolDetailViewModel` | `symbol`, live `quote`, `connectionState` | `toggleFeed()` |
 
@@ -94,7 +97,7 @@ Views only render what their view model exposes and forward user actions to it. 
 
 ### Composition root
 
-`MultiBankGroupTestTaskApp` builds the model with its concrete services, creates the root view model, starts `observeFeed()` and forwards scene-phase changes to the model. Dependencies are passed through initializers rather than the SwiftUI environment, so each view model's inputs are explicit.
+`MultiBankGroupTestTaskApp` creates the root view model with the live model (`StockMarketModel.live`: bundled symbols, Postman echo feed) and holds only that view model: it starts `observeFeed()` and forwards scene-phase changes through it. The model is owned by the navigation view model; screens reach it only through their view models. Dependencies are passed through initializers rather than the SwiftUI environment, so each view model's inputs are explicit.
 
 ### Key decisions
 
@@ -102,7 +105,7 @@ Views only render what their view model exposes and forward user actions to it. 
 - **Computed view model properties.** No state is copied into view models, so there is nothing to keep in sync and nothing to go stale.
 - **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would close an open sort menu).
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `StockSymbolsProvider`), where tests need to substitute real network and data access.
-- **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services that own mutable state are actors (`WebSocketPriceFeed`), so the WebSocket session, price generation and JSON coding run on its executor, never the main thread. Stateless services are `Sendable` structs whose methods are `@concurrent` (`BundledStockSymbolsProvider`), so they too run off the main thread without an actor's isolation; one becomes an actor only when it gains state to protect. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockSymbolPrice`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
+- **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services that own mutable state are actors (`WebSocketPriceFeed`), so the WebSocket session, price generation and JSON coding run on its executor, never the main thread. Stateless services are `Sendable` structs whose methods are `@concurrent` (`BundledStockSymbolsRepository`), so they too run off the main thread without an actor's isolation; one becomes an actor only when it gains state to protect. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockSymbolPrice`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
 - **Wire format.** Every WebSocket message is a plain JSON array of price updates, e.g. `[{"symbol":"AAPL","price":229.1,"timestamp":"2027-01-15T08:00:00Z"}]`, encoded and decoded with `Codable` by `FeedMessageCodec`. The feed carries only prices, so there is no type envelope; anything that isn't a valid price array fails to decode and is dropped. `JSONEncoder`/`JSONDecoder` aren't `Sendable`, so the codec lives inside the feed actor. The codec works in bytes (`Data`); the connection owns framing and sends them as text frames after checking they're valid UTF-8, while accepting text or binary frames from the server.
 - **Trust boundary on the echo.** Echoed messages that fail to decode are dropped; updates for unknown tickers are ignored; duplicate tickers from the provider are de-duplicated.
@@ -118,9 +121,9 @@ MultiBankGroupTestTask/
 ├── Services/
 │   ├── Network/WebSocketConnection.swift
 │   ├── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
-│   └── Symbols/                         # StockSymbolsProvider, BundledStockSymbolsProvider, StockSymbolPrice catalog
+│   └── Symbols/                         # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
 ├── Screens/
-│   ├── StockSymbolsNavigation/          # Root view + view model: NavigationStack, alerts
+│   ├── StockSymbolsNavigation/          # Root view + view model: NavigationSplitView, selection, alerts
 │   ├── StockSymbolsList/                # List view + view model
 │   ├── StockSymbolDetail/               # Detail view + view model
 │   └── Components/                      # FeedToolbar, ConnectionStatusView, PriceText, PriceChangeIndicator
@@ -148,9 +151,9 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 | `ReconnectPolicyTests` | Exponential growth, cap and jitter scaling. |
 | `StockMarketModelTests` | Price/change math; unknown symbols ignored; Start/Stop intents; lifecycle forwarding; feed events applied in order; symbol (re)loading, tracking and de-duplication; single-symbol refresh (details, newer vs. older prices, mismatched responses, failures, `404` removes the symbol); issue raising, precedence and clearing; refresh. |
 | `StockSymbolsListViewModelTests` | Both sort orders with tie-break; rows carry live quotes; load-once; refresh; toggle and connection state through the model. |
-| `StockSymbolDetailViewModelTests` | Quote follows live updates; nil once a refresh removes the symbol; `isDeleted` after a `404` or a list reload without it; refresh shows the backend's latest details; toggle stops a running feed. |
+| `StockSymbolDetailViewModelTests` | Quote follows live updates; nil once a refresh removes the symbol; refresh shows the backend's latest details; toggle stops a running feed. |
 | `StockSymbolsProviderTests` | The bundled provider behaves like the endpoints: list, fetch by id, `notFound` for unknown ids. |
-| `StockSymbolsNavigationViewModelTests` | Alert mirrors the model issue; dismiss; retry reloads the list, refreshes the symbol or reconnects; detail and list view models share live data. |
+| `StockSymbolsNavigationViewModelTests` | Selection shows the symbol and clears after a `404`, a list reload without it, or for an unknown ticker; alert mirrors the model issue; dismiss; retry reloads the list, refreshes the symbol or reconnects; detail and list view models share live data. |
 | `LocalizationTests` | Every UI string and symbol description has a German and Arabic entry, so untranslated text can't ship silently. |
 
 ## Source control

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct StockSymbolDetailView: View {
     let viewModel: StockSymbolDetailViewModel
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         let symbol = viewModel.symbol
@@ -44,12 +44,13 @@ struct StockSymbolDetailView: View {
             .padding()
         }
         .refreshable { await viewModel.refresh() }
-        // A deleted symbol has nothing left to show: go back to the list.
-        .onChange(of: viewModel.isDeleted, initial: true) { _, isDeleted in
-            if isDeleted { dismiss() }
-        }
         .navigationTitle(symbol.ticker)
-        .toolbar { FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed) }
+        .toolbar {
+            // Side by side (iPad, regular width) the list's toolbar already has these controls.
+            if horizontalSizeClass != .regular {
+                FeedToolbar(connectionState: viewModel.connectionState, toggleFeed: viewModel.toggleFeed)
+            }
+        }
     }
 
     /// Time only for today's updates; older ones (e.g. a previous close) also show the date.

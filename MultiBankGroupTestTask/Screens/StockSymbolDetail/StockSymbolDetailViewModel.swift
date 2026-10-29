@@ -28,10 +28,6 @@ final class StockSymbolDetailViewModel {
     /// `nil` once the symbol is no longer tracked, e.g. a refresh removed it while this screen was open.
     var quote: StockQuote? { market.quote(for: initialSymbol) }
 
-    /// The symbol was deleted: the backend returned 404 for it, or a list reload dropped it.
-    /// The screen closes when this becomes true.
-    var isDeleted: Bool { market.symbol(ticker: initialSymbol.ticker) == nil }
-
     var connectionState: ConnectionState { market.connectionState }
 
     /// Pull-to-refresh: re-fetches this symbol from the backend.

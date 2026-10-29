@@ -9,25 +9,18 @@ import SwiftUI
 
 @main
 struct MultiBankGroupTestTaskApp: App {
-    @State private var market: StockMarketModel
-    @State private var navigationViewModel: StockSymbolsNavigationViewModel
+    @State private var navigationViewModel = StockSymbolsNavigationViewModel(market: .live)
     @Environment(\.scenePhase) private var scenePhase
-
-    init() {
-        let market = StockMarketModel.live
-        _market = State(initialValue: market)
-        _navigationViewModel = State(initialValue: StockSymbolsNavigationViewModel(market: market))
-    }
 
     var body: some Scene {
         WindowGroup {
-            StockSymbolsNavigationStackView(viewModel: navigationViewModel)
-                .task { await market.observeFeed() }
+            StockSymbolsNavigationView(viewModel: navigationViewModel)
+                .task { await navigationViewModel.observeFeed() }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .background: Task { await market.appDidEnterBackground() }
-            case .active: Task { await market.appDidBecomeActive() }
+            case .background: Task { await navigationViewModel.appDidEnterBackground() }
+            case .active: Task { await navigationViewModel.appDidBecomeActive() }
             default: break
             }
         }
