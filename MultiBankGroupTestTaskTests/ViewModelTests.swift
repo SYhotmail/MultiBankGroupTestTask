@@ -13,18 +13,18 @@ import Testing
 /// tested against the same model the app uses.
 @MainActor
 private struct Fixture {
-    let feed = FakePriceFeed()
-    let repository = FakeSymbolsRepository()
-    let market: StockMarketModel
     let symbols: [StockSymbol] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
         .fixture("CCC", price: 20),
     ]
+    let feed = FakePriceFeed()
+    let repository: FakeSymbolsRepository
+    let market: StockMarketModel
 
     init() {
+        repository = FakeSymbolsRepository(result: .success(symbols))
         market = StockMarketModel(repository: repository, feed: feed)
-        repository.result = .success(symbols)
     }
 
     func load() async {
@@ -73,7 +73,7 @@ struct StockSymbolsListViewModelTests {
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
 
         await viewModel.loadIfNeeded()
-        fixture.repository.result = .success([])
+        await fixture.repository.setResult(.success([]))
         await viewModel.loadIfNeeded()
 
         #expect(viewModel.rows.count == 3)
@@ -84,22 +84,22 @@ struct StockSymbolsListViewModelTests {
         let fixture = Fixture()
         await fixture.load()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
-        fixture.repository.result = .success([fixture.symbols[0]])
+        await fixture.repository.setResult(.success([fixture.symbols[0]]))
 
         await viewModel.refresh()
 
-        #expect(fixture.feed.reconnectCount == 1)
+        #expect(await fixture.feed.reconnectCount == 1)
         #expect(viewModel.rows.map(\.id) == ["AAA"])
     }
 
-    @Test func toggleAndConnectionStateGoThroughTheModel() {
+    @Test func toggleAndConnectionStateGoThroughTheModel() async {
         let fixture = Fixture()
         let viewModel = StockSymbolsListViewModel(market: fixture.market)
 
-        viewModel.toggleFeed()
+        await viewModel.toggleFeed()
         fixture.market.apply(.connectionChanged(.connected))
 
-        #expect(fixture.feed.startCount == 1)
+        #expect(await fixture.feed.startCount == 1)
         #expect(viewModel.connectionState == .connected)
     }
 }
@@ -117,14 +117,14 @@ struct StockSymbolDetailViewModelTests {
         #expect(viewModel.quote == StockQuote(price: 27, change: -3))
     }
 
-    @Test func toggleStopsARunningFeed() {
+    @Test func toggleStopsARunningFeed() async {
         let fixture = Fixture()
         fixture.market.apply(.connectionChanged(.connected))
         let viewModel = StockSymbolDetailViewModel(symbol: fixture.symbols[0], market: fixture.market)
 
-        viewModel.toggleFeed()
+        await viewModel.toggleFeed()
 
-        #expect(fixture.feed.stopCount == 1)
+        #expect(await fixture.feed.stopCount == 1)
         #expect(viewModel.connectionState == .connected)
     }
 }
@@ -153,10 +153,10 @@ struct StockSymbolsNavigationViewModelTests {
 
     @Test func retryingASymbolsIssueReloads() async {
         let fixture = Fixture()
-        fixture.repository.result = .failure(TestError())
+        await fixture.repository.setResult(.failure(TestError()))
         await fixture.load()
         let viewModel = StockSymbolsNavigationViewModel(market: fixture.market)
-        fixture.repository.result = .success(fixture.symbols)
+        await fixture.repository.setResult(.success(fixture.symbols))
 
         await viewModel.retry(.symbolsUnavailable)
 
@@ -172,7 +172,7 @@ struct StockSymbolsNavigationViewModelTests {
         await viewModel.retry(.connectionLost)
 
         #expect(viewModel.alert == nil)
-        #expect(fixture.feed.reconnectCount == 1)
+        #expect(await fixture.feed.reconnectCount == 1)
     }
 
     @Test func detailViewModelsShareTheModel() async {

@@ -4,7 +4,7 @@ An iOS app that shows live price updates for 25 stock symbols. Prices travel thr
 server (`wss://ws.postman-echo.com/raw`): the app
 generates a random price update, sends it, and displays what the server echoes back.
 
-Built with SwiftUI, Swift Concurrency and the Observation framework, using the MVVM architecture. No third-party dependencies.
+Built with SwiftUI, Swift Concurrency (Swift 6 language mode, complete data-race safety) and the Observation framework, using the MVVM architecture. No third-party dependencies.
 
 ## Features
 
@@ -29,8 +29,8 @@ Built with SwiftUI, Swift Concurrency and the Observation framework, using the M
 
 ## Requirements
 
-- Xcode 27.1 or later
-- iOS 27.0 or later (iPhone and iPad)
+- Xcode 27.1 or later (Swift 6.4 toolchain; the project builds in the Swift 6 language mode)
+- iOS 18.7 or later (iPhone and iPad). On iOS 26 and later the toolbar uses Liquid Glass; earlier versions get the standard toolbar.
 
 ## Getting started
 
@@ -68,10 +68,10 @@ Below it sit the services:
 
 | Type | Responsibility |
 |---|---|
-| `WebSocketPriceFeed` (`PriceFeed`) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
+| `WebSocketPriceFeed` (`PriceFeed`, actor) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
 | `PriceUpdateGenerator` | Seedable random walk (±2% per tick, rounded to cents) for a random subset of tracked symbols. |
 | `WebSocketConnection` | Thin protocol over `URLSessionWebSocketTask`; swapped for an in-memory echo in tests. |
-| `SymbolsRepository` | Supplies the symbol list. `BundledSymbolsRepository` serves the built-in catalog; a network-backed implementation can replace it without touching the UI. |
+| `SymbolsRepository` (`Sendable`) | Supplies the symbol list. `BundledSymbolsRepository` (actor) serves the built-in catalog; a network-backed implementation can replace it without touching the UI. |
 
 ### ViewModels
 
@@ -99,7 +99,7 @@ Views only render what their view model exposes and forward user actions to it. 
 - **Computed view model properties.** No state is copied into view models, so there is nothing to keep in sync and nothing to go stale.
 - **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would close an open sort menu).
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `SymbolsRepository`), where tests need to substitute real network and data access.
-- **Main-actor by default.** The app target uses default `MainActor` isolation; I/O is `async`. Value types that cross isolation are `nonisolated` and `Sendable`.
+- **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. There is no default actor isolation: only UI-facing types are `@MainActor` — views, view models and `StockMarketModel`, which SwiftUI observes. Services are actors (`WebSocketPriceFeed`, `BundledSymbolsRepository`), so the WebSocket session, price generation and JSON coding run on their own executors, never the main thread. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
 - **Trust boundary on the echo.** Echoed messages that fail to decode are dropped; updates for unknown tickers are ignored; duplicate tickers from the repository are de-duplicated.
 - **Price change** is the change since the symbol's previous update; the indicator and the Price Change sort both use it.
@@ -132,6 +132,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 - **Deterministic** — random prices come from a seeded generator (SplitMix64); time-based behavior uses millisecond intervals injected through initializers.
 - **Offline** — the WebSocket is replaced by an in-memory echo connection that can fail to connect, drop, go silent or return malformed data.
 - **Bounded** — the feed suite has a time limit, so a regression that hangs fails instead of stalling the pipeline.
+- **Race-free** — the suite also passes under Thread Sanitizer (`xcodebuild test … -enableThreadSanitizer YES`); test doubles are actors or `Mutex`-protected, so they're safe under the same rules as the app.
 
 | Suite | Goal |
 |---|---|
@@ -147,7 +148,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 ## Source control
 
 - `main` is the stable branch: it always builds and passes the tests.
-- Work happens on feature branches merged into `main` with a merge commit (`--no-ff`), so each feature's history stays grouped and can be reverted as one unit. The implementation was built on `NetworkLayer`, moved to Redux on `Redux`, and to MVVM on `MVVM`.
+- Work happens on feature branches merged into `main` with a merge commit (`--no-ff`), so each feature's history stays grouped and can be reverted as one unit. The implementation was built on `NetworkLayer`, moved to Redux on `Redux` and to MVVM on `MVVM`; the app icon came from `AppIcon`, and the Swift 6 migration and iOS 18.7 support from `Swift6`.
 - Small, single-purpose commits with descriptive messages: the price feed and models, the screens and store, tests, UI refinements, reconnect and background handling, localization, pull-to-refresh and error alerts, and this README.
 - Generated and per-user files (`xcuserdata/`, `DerivedData/`, `build/`, `.DS_Store`) are excluded via `.gitignore`.
 

@@ -8,7 +8,7 @@
 import Foundation
 
 /// Static reference data for a tradable symbol. Live prices live in `StockQuote`.
-nonisolated struct StockSymbol: Hashable, Identifiable, Sendable {
+struct StockSymbol: Hashable, Identifiable, Sendable {
     let ticker: String
     let name: String
     let summary: String

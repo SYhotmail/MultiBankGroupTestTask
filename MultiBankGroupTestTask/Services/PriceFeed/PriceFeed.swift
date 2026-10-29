@@ -7,17 +7,18 @@
 
 import Foundation
 
-nonisolated enum PriceFeedEvent: Equatable, Sendable {
+enum PriceFeedEvent: Equatable, Sendable {
     case connectionChanged(ConnectionState)
     case priceUpdates([PriceUpdate])
     /// The live connection failed. Sent once per outage; the feed keeps retrying on its own.
     case connectionLost
 }
 
-/// A source of live prices that can be started and stopped.
-protocol PriceFeed: AnyObject {
+/// A source of live prices that can be started and stopped. An actor, so feed work never runs on
+/// the main thread; callers interact with it asynchronously.
+protocol PriceFeed: Actor {
     /// Single-consumer stream that lives as long as the feed, across start/stop cycles.
-    var events: AsyncStream<PriceFeedEvent> { get }
+    nonisolated var events: AsyncStream<PriceFeedEvent> { get }
     /// User intent: keep the feed running, reconnecting as needed.
     func start()
     /// User intent: stop the feed.
@@ -33,7 +34,7 @@ protocol PriceFeed: AnyObject {
 }
 
 /// Delay before reconnecting: exponential growth from `initialDelay`, capped at `maxDelay`.
-nonisolated struct ReconnectPolicy {
+struct ReconnectPolicy: Sendable {
     var initialDelay: Duration = .seconds(1)
     var maxDelay: Duration = .seconds(30)
 
@@ -48,10 +49,11 @@ nonisolated struct ReconnectPolicy {
 ///
 /// While started (and not suspended) it keeps a session alive: a failed connect, a dropped socket
 /// or an echo that doesn't arrive within `echoTimeout` all lead to a reconnect with backoff.
-final class WebSocketPriceFeed: PriceFeed {
-    let events: AsyncStream<PriceFeedEvent>
+/// Session state, price generation and JSON coding are isolated to this actor, off the main thread.
+actor WebSocketPriceFeed: PriceFeed {
+    nonisolated let events: AsyncStream<PriceFeedEvent>
     private let continuation: AsyncStream<PriceFeedEvent>.Continuation
-    private let makeConnection: () -> any WebSocketConnection
+    private let makeConnection: @Sendable () -> any WebSocketConnection
     private var generator: PriceUpdateGenerator
     private let updateInterval: Duration
     private let echoTimeout: Duration
@@ -69,7 +71,7 @@ final class WebSocketPriceFeed: PriceFeed {
         updateInterval: Duration = .seconds(2),
         echoTimeout: Duration = .seconds(10),
         reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
-        makeConnection: @escaping () -> any WebSocketConnection
+        makeConnection: @escaping @Sendable () -> any WebSocketConnection
     ) {
         (events, continuation) = AsyncStream.makeStream()
         self.generator = generator
@@ -79,7 +81,7 @@ final class WebSocketPriceFeed: PriceFeed {
         self.makeConnection = makeConnection
     }
 
-    convenience init(url: URL) {
+    init(url: URL) {
         self.init(generator: PriceUpdateGenerator(symbols: [])) {
             URLSessionWebSocketConnection(url: url)
         }

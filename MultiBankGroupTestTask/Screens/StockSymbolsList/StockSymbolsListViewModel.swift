@@ -9,6 +9,7 @@ import Foundation
 import Observation
 
 /// Presentation logic for the symbols list: sorting, rows and feed controls.
+@MainActor
 @Observable
 final class StockSymbolsListViewModel {
     enum SortOrder: CaseIterable, Hashable {
@@ -50,8 +51,8 @@ final class StockSymbolsListViewModel {
     /// Spinner only while the very first load is in flight; a refresh keeps the current rows.
     var showsLoadingIndicator: Bool { market.symbols.isEmpty && market.isLoadingSymbols }
 
-    func toggleFeed() {
-        market.toggleFeed()
+    func toggleFeed() async {
+        await market.toggleFeed()
     }
 
     /// Pull-to-refresh.

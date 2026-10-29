@@ -10,6 +10,7 @@ import Observation
 
 /// Root of the screen hierarchy: owns the list view model, builds detail view models and turns
 /// model issues into alerts shown above whichever screen is visible.
+@MainActor
 @Observable
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
@@ -35,7 +36,7 @@ final class StockSymbolsNavigationViewModel {
         market.clearIssue()
         switch issue {
         case .symbolsUnavailable: await market.loadSymbols()
-        case .connectionLost: market.reconnectFeed()
+        case .connectionLost: await market.reconnectFeed()
         }
     }
 }

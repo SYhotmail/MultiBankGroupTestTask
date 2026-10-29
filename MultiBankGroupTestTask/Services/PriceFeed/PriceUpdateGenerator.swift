@@ -8,18 +8,18 @@
 import Foundation
 
 /// Produces random-walk price updates for a random subset of symbols on each call.
-nonisolated struct PriceUpdateGenerator {
+struct PriceUpdateGenerator: Sendable {
     private var tickers: [String] = []
     private var prices: [String: Decimal] = [:]
     private let maxChangeRatio: Double
     private let maxUpdatesPerBatch: Int
-    private var rng: any RandomNumberGenerator
+    private var rng: any RandomNumberGenerator & Sendable
 
     init(
         symbols: [StockSymbol],
         maxChangeRatio: Double = 0.02,
         maxUpdatesPerBatch: Int = 5,
-        rng: any RandomNumberGenerator = SystemRandomNumberGenerator()
+        rng: any RandomNumberGenerator & Sendable = SystemRandomNumberGenerator()
     ) {
         self.maxChangeRatio = maxChangeRatio
         self.maxUpdatesPerBatch = max(1, maxUpdatesPerBatch)

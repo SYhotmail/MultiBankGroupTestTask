@@ -9,16 +9,16 @@ import Foundation
 import Testing
 @testable import MultiBankGroupTestTask
 
-@MainActor
+/// Runs off the main actor: the feed is an actor and is driven purely through `await`.
 @Suite(.timeLimit(.minutes(1)))
 struct WebSocketPriceFeedTests {
     /// - Parameter configure: Called for each new connection with its zero-based index.
     private func makeFeed(
         echoTimeout: Duration = .seconds(10),
         reconnectDelay: Duration = .milliseconds(5),
-        configure: @escaping (EchoWebSocketConnection, Int) -> Void = { _, _ in }
+        configure: @escaping @Sendable (EchoWebSocketConnection, Int) -> Void = { _, _ in }
     ) -> (WebSocketPriceFeed, () -> [EchoWebSocketConnection]) {
-        var created: [EchoWebSocketConnection] = []
+        let log = ConnectionLog()
         let generator = PriceUpdateGenerator(symbols: StockSymbol.catalog, rng: SeededRandomNumberGenerator(seed: 1))
         let feed = WebSocketPriceFeed(
             generator: generator,
@@ -27,16 +27,16 @@ struct WebSocketPriceFeedTests {
             reconnectPolicy: ReconnectPolicy(initialDelay: reconnectDelay, maxDelay: max(reconnectDelay, .milliseconds(20)))
         ) {
             let connection = EchoWebSocketConnection()
-            configure(connection, created.count)
-            created.append(connection)
+            configure(connection, log.append(connection))
             return connection
         }
-        return (feed, { created })
+        return (feed, { log.all })
     }
 
     /// Next connection state change, skipping price updates.
     private func nextState(_ events: inout AsyncStream<PriceFeedEvent>.Iterator) async -> ConnectionState? {
-        while let event = await events.next() {
+        // Read on the caller's isolation: the iterator belongs to the caller and must not be sent away.
+        while let event = await events.next(isolation: #isolation) {
             if case .connectionChanged(let state) = event { return state }
         }
         return nil
@@ -46,7 +46,7 @@ struct WebSocketPriceFeedTests {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
 
-        feed.start()
+        await feed.start()
 
         #expect(await events.next() == .connectionChanged(.connecting))
         #expect(await events.next() == .connectionChanged(.connected))
@@ -62,11 +62,11 @@ struct WebSocketPriceFeedTests {
     @Test func stopDisconnectsAndClosesTheSocket() async {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         _ = await events.next() // connecting
         _ = await events.next() // connected
 
-        feed.stop()
+        await feed.stop()
 
         var next = await events.next()
         // Updates already in flight may arrive first; the next state change must be a disconnect.
@@ -78,12 +78,12 @@ struct WebSocketPriceFeedTests {
     @Test func feedCanBeRestartedWithAFreshConnection() async {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         _ = await events.next() // connecting
         _ = await events.next() // connected
-        feed.stop()
+        await feed.stop()
 
-        feed.start()
+        await feed.start()
 
         var states: [ConnectionState] = []
         while states.last != .connected, let event = await events.next() {
@@ -99,7 +99,7 @@ struct WebSocketPriceFeedTests {
         }
         var events = feed.events.makeAsyncIterator()
 
-        feed.start()
+        await feed.start()
 
         // Failures keep the feed in `connecting` rather than reporting a disconnect.
         #expect(await nextState(&events) == .connecting)
@@ -112,7 +112,7 @@ struct WebSocketPriceFeedTests {
     @Test func droppedConnectionReconnects() async {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
 
@@ -128,7 +128,7 @@ struct WebSocketPriceFeedTests {
             connection.isSilent = index == 0
         }
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
 
@@ -140,11 +140,11 @@ struct WebSocketPriceFeedTests {
     @Test func stopDuringBackoffEndsRetries() async {
         let (feed, connections) = makeFeed { connection, _ in connection.connectError = TestError() }
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connecting) // first failure, now backing off
 
-        feed.stop()
+        await feed.stop()
         #expect(await nextState(&events) == .disconnected)
 
         let attempts = connections().count
@@ -155,15 +155,15 @@ struct WebSocketPriceFeedTests {
     @Test func suspendDisconnectsAndResumeReconnects() async {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
 
-        feed.suspend()
+        await feed.suspend()
         #expect(await nextState(&events) == .disconnected)
         #expect(connections()[0].isClosed)
 
-        feed.resume()
+        await feed.resume()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
         #expect(connections().count == 2)
@@ -171,11 +171,11 @@ struct WebSocketPriceFeedTests {
 
     @Test func resumeDoesNotStartAStoppedFeed() async {
         let (feed, connections) = makeFeed()
-        feed.start()
-        feed.stop()
-        feed.suspend()
+        await feed.start()
+        await feed.stop()
+        await feed.suspend()
 
-        feed.resume()
+        await feed.resume()
 
         try? await Task.sleep(for: .milliseconds(50))
         #expect(connections().isEmpty)
@@ -183,13 +183,13 @@ struct WebSocketPriceFeedTests {
 
     @Test func startWhileSuspendedWaitsForResume() async {
         let (feed, connections) = makeFeed()
-        feed.suspend()
+        await feed.suspend()
 
-        feed.start()
+        await feed.start()
         try? await Task.sleep(for: .milliseconds(50))
         #expect(connections().isEmpty)
 
-        feed.resume()
+        await feed.resume()
         var events = feed.events.makeAsyncIterator()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
@@ -198,7 +198,7 @@ struct WebSocketPriceFeedTests {
     @Test func malformedEchoIsIgnoredWithoutDroppingTheConnection() async {
         let (feed, connections) = makeFeed { connection, _ in connection.replyOverride = "not json" }
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         _ = await events.next() // connecting
         _ = await events.next() // connected
 
@@ -206,7 +206,7 @@ struct WebSocketPriceFeedTests {
         while connections()[0].sentMessages.count < 3 {
             try? await Task.sleep(for: .milliseconds(5))
         }
-        feed.stop()
+        await feed.stop()
 
         #expect(await events.next() == .connectionChanged(.disconnected))
     }
@@ -216,7 +216,7 @@ struct WebSocketPriceFeedTests {
             if index < 3 { connection.connectError = TestError() }
         }
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
 
         var lostCount = 0
         while let event = await events.next(), event != .connectionChanged(.connected) {
@@ -230,11 +230,11 @@ struct WebSocketPriceFeedTests {
             if index == 0 { connection.connectError = TestError() }
         }
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         while let event = await events.next(), event != .connectionLost {}
 
         // Without reconnect() the next attempt would wait about a minute.
-        feed.reconnect()
+        await feed.reconnect()
 
         var states: [ConnectionState] = []
         while states.last != .connected, let state = await nextState(&events) { states.append(state) }
@@ -244,7 +244,7 @@ struct WebSocketPriceFeedTests {
     @Test func reconnectDoesNotStartAStoppedFeed() async {
         let (feed, connections) = makeFeed()
 
-        feed.reconnect()
+        await feed.reconnect()
 
         try? await Task.sleep(for: .milliseconds(50))
         #expect(connections().isEmpty)
@@ -252,9 +252,9 @@ struct WebSocketPriceFeedTests {
 
     @Test func updatesFollowTheTrackedSymbols() async {
         let (feed, _) = makeFeed()
-        feed.track([.fixture("ZZZ", price: 1)])
+        await feed.track([.fixture("ZZZ", price: 1)])
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
 
         while let event = await events.next() {
             guard case .priceUpdates(let updates) = event else { continue }
@@ -265,9 +265,9 @@ struct WebSocketPriceFeedTests {
 
     @Test func emptySymbolListSendsNothing() async {
         let (feed, connections) = makeFeed()
-        feed.track([])
+        await feed.track([])
         var events = feed.events.makeAsyncIterator()
-        feed.start()
+        await feed.start()
         #expect(await nextState(&events) == .connecting)
         #expect(await nextState(&events) == .connected)
 

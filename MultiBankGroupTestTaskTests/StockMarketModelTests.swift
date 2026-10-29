@@ -21,7 +21,7 @@ struct StockMarketModelTests {
 
     /// A model with `symbols` already loaded.
     private func makeModel() async -> StockMarketModel {
-        repository.result = .success(symbols)
+        await repository.setResult(.success(symbols))
         let model = StockMarketModel(repository: repository, feed: feed)
         await model.loadSymbols()
         return model
@@ -59,29 +59,29 @@ struct StockMarketModelTests {
         let model = await makeModel()
         model.apply(.connectionChanged(state))
 
-        model.toggleFeed()
+        await model.toggleFeed()
 
-        #expect(feed.stopCount == 1)
-        #expect(feed.startCount == 0)
+        #expect(await feed.stopCount == 1)
+        #expect(await feed.startCount == 0)
     }
 
     @Test func toggleStartsAStoppedFeed() async {
         let model = await makeModel()
 
-        model.toggleFeed()
+        await model.toggleFeed()
 
-        #expect(feed.startCount == 1)
-        #expect(feed.stopCount == 0)
+        #expect(await feed.startCount == 1)
+        #expect(await feed.stopCount == 0)
     }
 
     @Test func appLifecycleSuspendsAndResumesTheFeed() async {
         let model = await makeModel()
 
-        model.appDidEnterBackground()
-        model.appDidBecomeActive()
+        await model.appDidEnterBackground()
+        await model.appDidBecomeActive()
 
-        #expect(feed.suspendCount == 1)
-        #expect(feed.resumeCount == 1)
+        #expect(await feed.suspendCount == 1)
+        #expect(await feed.resumeCount == 1)
     }
 
     @Test func observeFeedAppliesEventsInOrder() async {
@@ -98,13 +98,13 @@ struct StockMarketModelTests {
 
     @Test func loadingSymbolsTracksThemInTheFeed() async {
         _ = await makeModel()
-        #expect(feed.trackedSymbols == symbols)
+        #expect(await feed.trackedSymbols == symbols)
     }
 
     @Test func reloadKeepsQuotesOfRemainingSymbolsAndAddsNewOnes() async {
         let model = await makeModel()
         model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15)]))
-        repository.result = .success([symbols[0], .fixture("DDD", price: 5)])
+        await repository.setResult(.success([symbols[0], .fixture("DDD", price: 5)]))
 
         await model.loadSymbols()
 
@@ -116,7 +116,7 @@ struct StockMarketModelTests {
 
     @Test func duplicateTickersKeepTheFirstOccurrence() async {
         let model = await makeModel()
-        repository.result = .success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)])
+        await repository.setResult(.success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)]))
 
         await model.loadSymbols()
 
@@ -126,7 +126,7 @@ struct StockMarketModelTests {
 
     @Test func failedLoadRaisesIssueAndKeepsCurrentSymbols() async {
         let model = await makeModel()
-        repository.result = .failure(TestError())
+        await repository.setResult(.failure(TestError()))
 
         await model.loadSymbols()
 
@@ -137,17 +137,17 @@ struct StockMarketModelTests {
 
     @Test func refreshReconnectsFeedAndReloadsSymbols() async {
         let model = await makeModel()
-        repository.result = .success([symbols[2]])
+        await repository.setResult(.success([symbols[2]]))
 
         await model.refresh()
 
-        #expect(feed.reconnectCount == 1)
+        #expect(await feed.reconnectCount == 1)
         #expect(model.symbols == [symbols[2]])
     }
 
     @Test func connectionLostDoesNotReplaceAnUnseenIssue() async {
         let model = await makeModel()
-        repository.result = .failure(TestError())
+        await repository.setResult(.failure(TestError()))
         await model.loadSymbols()
 
         model.apply(.connectionLost)
