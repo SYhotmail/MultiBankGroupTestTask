@@ -29,8 +29,8 @@ final class StockMarketModel {
     private(set) var isLoadingSymbols = false
     private(set) var issue: Issue?
 
-    @ObservationIgnored private let repository: any StockSymbolsRepository
-    @ObservationIgnored private let feed: any PriceFeed
+    private let repository: any StockSymbolsRepository
+    private let feed: any PriceFeed
 
     init(repository: any StockSymbolsRepository, feed: any PriceFeed) {
         self.repository = repository

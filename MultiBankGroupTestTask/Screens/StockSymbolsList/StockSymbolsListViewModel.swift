@@ -27,7 +27,7 @@ final class StockSymbolsListViewModel {
     /// Screen-only state: the model doesn't care how the list is ordered.
     var sortOrder: SortOrder = .price
 
-    @ObservationIgnored private let market: StockMarketModel
+    private let market: StockMarketModel
 
     init(market: StockMarketModel) {
         self.market = market

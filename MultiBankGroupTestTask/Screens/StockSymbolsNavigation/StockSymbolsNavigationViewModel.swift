@@ -15,7 +15,7 @@ import Observation
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
 
-    @ObservationIgnored private let market: StockMarketModel
+    private let market: StockMarketModel
 
     init(market: StockMarketModel) {
         self.market = market
