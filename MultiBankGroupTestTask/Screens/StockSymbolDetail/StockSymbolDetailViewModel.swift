@@ -12,25 +12,21 @@ import Observation
 /// quote from the shared `StockMarketModel`, and refreshing it from the backend (`GET /symbols/{id}`).
 @MainActor
 @Observable
-final class StockSymbolDetailViewModel: BaseViewModel {
+final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
     private let initialSymbol: StockSymbol
-    private let provider: any StockSymbolsProvider
     private let list: StockSymbolsListViewModel
-    private let onIssue: StockSymbolsIssueHandler
 
     init(
         symbol: StockSymbol,
-        provider: any StockSymbolsProvider,
         list: StockSymbolsListViewModel,
+        provider: any StockSymbolsProvider,
         market: StockMarketModel,
         feed: any PriceFeed,
-        onIssue: @escaping StockSymbolsIssueHandler
+        onIssue: StockSymbolsIssueHandler? = nil
     ) {
         initialSymbol = symbol
-        self.provider = provider
         self.list = list
-        self.onIssue = onIssue
-        super.init(market: market, feed: feed)
+        super.init(provider: provider, market: market, feed: feed, onIssue: onIssue)
     }
     
     private var ticker: String { initialSymbol.ticker }
@@ -42,9 +38,10 @@ final class StockSymbolDetailViewModel: BaseViewModel {
     /// `nil` once the symbol is no longer priced, e.g. a refresh removed it while this screen was open.
     var quote: StockQuote? { market.quote(for: ticker) }
     
-    /// Pull-to-refresh: re-fetches this symbol. Updates its details, and its quote when the backend's
-    /// price is newer than the live one. A `404` deletes the symbol; other failures are reported.
-    func refresh() async {
+    /// Pull-to-refresh: reconnects the feed and re-fetches this symbol. Updates its details, and its quote
+    /// when the backend's price is newer than the live one. A `404` deletes the symbol; other failures are reported.
+    override func refresh() async {
+        await super.refresh()
         do {
             let fetched = try await provider.fetchStockSymbol(id: ticker)
             // Trust boundary: accept only the symbol we asked for, and only while it's still listed.
@@ -57,7 +54,7 @@ final class StockSymbolDetailViewModel: BaseViewModel {
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
         } catch {
-            onIssue(.symbolUnavailable(ticker: ticker), String(reflecting: error))
+            onIssue?(.symbolUnavailable(ticker: ticker), String(reflecting: error))
         }
     }
     

@@ -33,8 +33,8 @@ final class StockSymbolsNavigationViewModel {
         listViewModel = StockSymbolsListViewModel(provider: provider, market: market, feed: feed)
 
         // Weak: this view model owns the market and the list, so strong captures would be retain cycles.
-        market.onConnectionLost = { [weak self] reason in self?.report(.connectionLost, debugDescription: reason) }
         listViewModel.onIssue = { [weak self] issue, reason in self?.report(issue, debugDescription: reason) }
+        market.onConnectionLost = { [weak self] reason in self?.report(.connectionLost, debugDescription: reason) }
     }
 
     /// Ticker of the symbol shown in the detail column. Reads as `nil` once that symbol is deleted
@@ -47,7 +47,11 @@ final class StockSymbolsNavigationViewModel {
     var selectedSymbol: StockSymbol? { selectedTicker.flatMap { listViewModel.symbol(ticker: $0) } }
 
     func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: symbol, provider: provider, list: listViewModel, market: market, feed: feed) { [weak self] issue, reason in
+        StockSymbolDetailViewModel(symbol: symbol,
+                                   list: listViewModel,
+                                   provider: provider,
+                                   market: market,
+                                   feed: feed) { [weak self] issue, reason in
             self?.report(issue, debugDescription: reason)
         }
     }
