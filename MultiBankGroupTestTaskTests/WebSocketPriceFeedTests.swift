@@ -56,7 +56,7 @@ struct WebSocketPriceFeedTests {
             return
         }
         let sent = try FeedMessageCodec().decode(connections()[0].sentMessages[0])
-        #expect(sent == .prices(updates))
+        #expect(sent == updates)
         #expect(!updates.isEmpty)
         // Timestamps survive the ISO 8601 round trip through the echo server.
         #expect(updates.allSatisfy { $0.timestamp == .fixture })
@@ -214,7 +214,7 @@ struct WebSocketPriceFeedTests {
         #expect(await events.next() == .connectionChanged(.disconnected))
     }
 
-    @Test func unknownMessageTypeIsIgnoredWithoutDroppingTheConnection() async {
+    @Test func nonPriceMessageIsIgnoredWithoutDroppingTheConnection() async {
         let (feed, connections) = makeFeed { connection, _ in
             connection.replyOverride = #"{"type":"heartbeat"}"#
         }
@@ -223,7 +223,7 @@ struct WebSocketPriceFeedTests {
         _ = await events.next() // connecting
         _ = await events.next() // connected
 
-        // Several exchanges get an unknown reply: no updates, no reconnect; only our own disconnect follows.
+        // Several exchanges get a reply that isn't a price array: no updates, no reconnect; only our own disconnect follows.
         while connections()[0].sentMessages.count < 3 {
             try? await Task.sleep(for: .milliseconds(5))
         }

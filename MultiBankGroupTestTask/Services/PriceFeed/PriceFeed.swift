@@ -168,7 +168,7 @@ actor WebSocketPriceFeed: PriceFeed {
     private func exchangeUpdates(over connection: any WebSocketConnection) async throws {
         let updates = generator.next(at: now())
         guard !updates.isEmpty else { return }
-        try await connection.send(try codec.encode(.prices(updates)))
+        try await connection.send(try codec.encode(updates))
 
         // A silent server never fails `receive()` on its own; closing the socket makes it throw.
         let watchdog = Task { [echoTimeout] in
@@ -179,13 +179,8 @@ actor WebSocketPriceFeed: PriceFeed {
         let echo = try await connection.receive()
         try Task.checkCancellation()
 
-        // The echo crosses a trust boundary: drop anything that is not a valid message.
-        guard let message = try? codec.decode(echo) else { return }
-        switch message {
-        case .prices(let echoed):
-            continuation.yield(.priceUpdates(echoed))
-        case .unknown:
-            break   // Message types added by a newer server are ignored, not fatal.
-        }
+        // The echo crosses a trust boundary: drop anything that is not a valid update batch.
+        guard let echoed = try? codec.decode(echo) else { return }
+        continuation.yield(.priceUpdates(echoed))
     }
 }

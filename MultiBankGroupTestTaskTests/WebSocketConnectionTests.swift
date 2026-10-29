@@ -24,8 +24,8 @@ struct WebSocketConnectionTests {
     }
 
     @Test func codecOutputIsAlwaysAValidTextFrame() throws {
-        let message = FeedMessage.prices([PriceUpdate(symbol: "AAPL", price: 229.1, timestamp: .fixture)])
-        let data = try FeedMessageCodec().encode(message)
+        let updates = [PriceUpdate(symbol: "AAPL", price: 229.1, timestamp: .fixture)]
+        let data = try FeedMessageCodec().encode(updates)
         #expect(try !URLSessionWebSocketConnection.textFrame(from: data).isEmpty)
     }
 }
