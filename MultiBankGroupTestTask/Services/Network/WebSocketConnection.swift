@@ -12,10 +12,19 @@ import Foundation
 protocol WebSocketConnection: AnyObject, Sendable {
     /// Opens the socket and returns once the server has answered.
     func connect() async throws
-    func send(_ message: String) async throws
-    func receive() async throws -> String
+    /// Sends UTF-8 encoded text (e.g. JSON) as one WebSocket text frame.
+    /// - Throws: `WebSocketConnectionError.invalidUTF8` if the bytes aren't valid UTF-8.
+    func send(_ message: Data) async throws
+    /// The next message's payload. Binary and text frames are both accepted, so a server that
+    /// answers in text frames works too.
+    func receive() async throws -> Data
     /// Closes the socket. Pending `receive()` calls fail.
     func close()
+}
+
+nonisolated enum WebSocketConnectionError: Error, Equatable {
+    /// `send(_:)` was given bytes that aren't valid UTF-8, so they can't go in a text frame.
+    case invalidUTF8
 }
 
 final class URLSessionWebSocketConnection: WebSocketConnection {
@@ -39,16 +48,25 @@ final class URLSessionWebSocketConnection: WebSocketConnection {
         }
     }
 
-    func send(_ message: String) async throws {
-        try await task.send(.string(message))
+    func send(_ message: Data) async throws {
+        // Text frames, not binary: JSON is text, and the echo server closes the socket on binary frames.
+        try await task.send(.string(try Self.textFrame(from: message)))
     }
 
-    func receive() async throws -> String {
+    /// The text a frame carries; text frames must be valid UTF-8, so refuse rather than mangle.
+    static func textFrame(from message: Data) throws -> String {
+        guard let text = String(validating: message, as: UTF8.self) else {
+            throw WebSocketConnectionError.invalidUTF8
+        }
+        return text
+    }
+
+    func receive() async throws -> Data {
         switch try await task.receive() {
         case .string(let text):
-            return text
+            return Data(text.utf8)
         case .data(let data):
-            return String(decoding: data, as: UTF8.self)
+            return data
         @unknown default:
             throw URLError(.cannotDecodeContentData)
         }

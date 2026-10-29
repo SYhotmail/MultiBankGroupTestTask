@@ -35,10 +35,10 @@ final class EchoWebSocketConnection: WebSocketConnection {
         var connectError: (any Error)?
         var replyOverride: String?
         var isSilent = false
-        var sentMessages: [String] = []
+        var sentMessages: [Data] = []
         var isClosed = false
-        var pending: [String] = []
-        var silentReceive: CheckedContinuation<String, any Error>?
+        var pending: [Data] = []
+        var silentReceive: CheckedContinuation<Data, any Error>?
     }
 
     private let state = Mutex(State())
@@ -60,14 +60,14 @@ final class EchoWebSocketConnection: WebSocketConnection {
         set { state.withLock { $0.isSilent = newValue } }
     }
 
-    var sentMessages: [String] { state.withLock { $0.sentMessages } }
+    var sentMessages: [Data] { state.withLock { $0.sentMessages } }
     var isClosed: Bool { state.withLock { $0.isClosed } }
 
     func connect() async throws {
         if let error = connectError { throw error }
     }
 
-    func send(_ message: String) async throws {
+    func send(_ message: Data) async throws {
         try state.withLock { state in
             guard !state.isClosed else { throw TestError() }
             state.sentMessages.append(message)
@@ -75,13 +75,13 @@ final class EchoWebSocketConnection: WebSocketConnection {
         }
     }
 
-    func receive() async throws -> String {
-        let reply: String? = try state.withLock { state in
+    func receive() async throws -> Data {
+        let reply: Data? = try state.withLock { state in
             guard !state.isClosed else { throw TestError() }
             guard !state.isSilent else { return nil }
             guard !state.pending.isEmpty else { throw TestError() }
             let echo = state.pending.removeFirst()
-            return state.replyOverride ?? echo
+            return state.replyOverride.map { Data($0.utf8) } ?? echo
         }
         if let reply { return reply }
         return try await withCheckedThrowingContinuation { continuation in
