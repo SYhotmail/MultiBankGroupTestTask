@@ -26,21 +26,42 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         var id: String { symbol.ticker }
     }
     
+    /// Everything `rows` depends on.
+    private struct RowsInput: Equatable {
+        let symbols: [StockSymbol]
+        let quotes: [String: StockQuote]
+        let sortOrder: SortOrder
+    }
+
     var sortOrder: SortOrder = .price
     private(set) var symbols: [StockSymbol] = []
     private(set) var isLoading = false
-    
+
+    /// The last `rows` result and what it was built from. Ignored by observation: it's a cache, written
+    /// while a view reads `rows`, and its inputs are observed anyway.
+    @ObservationIgnored private var rowsCache: (input: RowsInput, rows: [Row])?
+
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
-    var rows: [Row] { // TODO: calculate rows instead of every time revaluation
-        symbols
-            .compactMap { symbol in market.quote(for: symbol.ticker).map { Row(symbol: symbol, quote: $0) } }
+    ///
+    /// Rebuilt only when the symbols, their quotes or the sort order change, not on every read (e.g. when
+    /// the view redraws for the connection status). A price update still rebuilds them: it can reorder rows.
+    /// Checking for changes is cheap: unchanged arrays and dictionaries share storage, so `==` returns early.
+    var rows: [Row] {
+        let input = RowsInput(symbols: symbols, quotes: market.quotes, sortOrder: sortOrder)
+        if let rowsCache, rowsCache.input == input {
+            return rowsCache.rows
+        }
+        let rows = input.symbols
+            .compactMap { symbol in input.quotes[symbol.ticker].map { Row(symbol: symbol, quote: $0) } }
             .sorted { lhs, rhs in
-                let (lhsValue, rhsValue) = switch sortOrder {
+                let (lhsValue, rhsValue) = switch input.sortOrder {
                 case .price: (lhs.quote.price, rhs.quote.price)
                 case .priceChange: (lhs.quote.change, rhs.quote.change)
                 }
                 return lhsValue == rhsValue ? lhs.id < rhs.id : lhsValue > rhsValue
             }
+        rowsCache = (input, rows)
+        return rows
     }
 
     /// Spinner only while the very first load is in flight; a refresh keeps the current rows.
