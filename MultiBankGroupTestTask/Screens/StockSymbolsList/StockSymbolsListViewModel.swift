@@ -12,33 +12,23 @@ import Observation
 /// controls shown above the list. Live prices come from the shared `StockMarketModel`.
 @MainActor
 @Observable
-final class StockSymbolsListViewModel: BaseViewModel {
+final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     enum SortOrder: CaseIterable, Hashable {
         case price
         case priceChange
     }
-
+    
     struct Row: Identifiable, Equatable {
         let symbol: StockSymbol
         let quote: StockQuote
-
+        
         var id: String { symbol.ticker }
     }
-
+    
     var sortOrder: SortOrder = .price
     private(set) var symbols: [StockSymbol] = []
     private(set) var isLoading = false
-
-    /// Where a failed load is reported.
-    @ObservationIgnored var onIssue: StockSymbolsIssueHandler?
-
-    private let provider: any StockSymbolsProvider
-
-    init(provider: any StockSymbolsProvider, market: StockMarketModel, feed: any PriceFeed) {
-        self.provider = provider
-        super.init(market: market, feed: feed)
-    }
-
+    
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
     var rows: [Row] {
         symbols
@@ -66,8 +56,8 @@ final class StockSymbolsListViewModel: BaseViewModel {
     }
 
     /// Pull-to-refresh: reconnects the running feed right away and reloads the list.
-    func refresh() async {
-        await reconnectFeed()
+    override func refresh() async {
+        await super.refresh()
         await load()
     }
 

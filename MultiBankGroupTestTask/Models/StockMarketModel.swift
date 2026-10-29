@@ -22,7 +22,7 @@ final class StockMarketModel {
     /// Called once per outage with a description of the underlying error.
     @ObservationIgnored var onConnectionLost: (@MainActor (String) -> Void)?
 
-    let feed: any StockSymbolPriceTracker
+    private let feed: any StockSymbolPriceTracker
     /// What the feed generates prices for.
     private var tracked: [StockSymbolPrice] = []
 

@@ -47,7 +47,7 @@ private struct Fixture {
     }
 
     func detail(_ index: Int) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: catalog[index].symbol, provider: provider, list: list, market: market, feed: feed, onIssue: issues.handler)
+        StockSymbolDetailViewModel(symbol: catalog[index].symbol, list: list, provider: provider, market: market, feed: feed, onIssue: issues.handler)
     }
 }
 
@@ -231,6 +231,7 @@ struct StockSymbolDetailViewModelTests {
 
         #expect(detail.symbol.name == "BBB Holdings")
         #expect(fixture.list.symbol(ticker: "BBB")?.name == "BBB Holdings")
+        #expect(await fixture.feed.reconnectCount == 1)
     }
 
     @Test func refreshTakesANewerPrice() async {
