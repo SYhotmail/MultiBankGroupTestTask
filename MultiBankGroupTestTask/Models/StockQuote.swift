@@ -13,15 +13,18 @@ nonisolated enum PriceDirection: Sendable {
     case unchanged
 }
 
-/// Current price of a symbol and its change since the previous update.
+/// Current price of a symbol, its change since the previous update and when that update happened.
 /// Explicitly `nonisolated`: plain data, usable from any actor regardless of the module's default isolation.
 nonisolated struct StockQuote: Equatable, Sendable {
     let price: Decimal
     let change: Decimal
+    /// When the price last changed; `nil` while it is still the reference price.
+    let updatedAt: Date?
 
-    init(price: Decimal, change: Decimal = 0) {
+    init(price: Decimal, change: Decimal = 0, updatedAt: Date? = nil) {
         self.price = price
         self.change = change
+        self.updatedAt = updatedAt
     }
 
     var direction: PriceDirection {
@@ -30,8 +33,8 @@ nonisolated struct StockQuote: Equatable, Sendable {
         return .unchanged
     }
 
-    func updated(to newPrice: Decimal) -> StockQuote {
-        StockQuote(price: newPrice, change: newPrice - price)
+    func updated(to newPrice: Decimal, at timestamp: Date) -> StockQuote {
+        StockQuote(price: newPrice, change: newPrice - price, updatedAt: timestamp)
     }
 }
 
@@ -39,6 +42,8 @@ nonisolated struct StockQuote: Equatable, Sendable {
 nonisolated struct PriceUpdate: Codable, Equatable, Sendable {
     let symbol: String
     let price: Decimal
+    /// When the price was generated; encoded as ISO 8601 on the wire.
+    let timestamp: Date
 }
 
 nonisolated enum ConnectionState: Equatable, Sendable {

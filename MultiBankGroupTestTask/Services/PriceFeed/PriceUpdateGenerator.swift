@@ -39,14 +39,14 @@ struct PriceUpdateGenerator: Sendable {
         prices = newPrices
     }
 
-    /// Next batch of updates; empty when no symbols are tracked.
-    mutating func next() -> [PriceUpdate] {
+    /// Next batch of updates stamped with `timestamp`; empty when no symbols are tracked.
+    mutating func next(at timestamp: Date) -> [PriceUpdate] {
         guard !tickers.isEmpty else { return [] }
         let count = Int.random(in: 1...min(maxUpdatesPerBatch, tickers.count), using: &rng)
         return tickers.shuffled(using: &rng).prefix(count).map { ticker in
             let price = nextPrice(after: prices[ticker, default: 0])
             prices[ticker] = price
-            return PriceUpdate(symbol: ticker, price: price)
+            return PriceUpdate(symbol: ticker, price: price, timestamp: timestamp)
         }
     }
 

@@ -58,8 +58,17 @@ actor WebSocketPriceFeed: PriceFeed {
     private let updateInterval: Duration
     private let echoTimeout: Duration
     private let reconnectPolicy: ReconnectPolicy
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    private let now: @Sendable () -> Date
+    private let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
+    private let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
 
     private var isRequested = false
     private var isSuspended = false
@@ -71,6 +80,7 @@ actor WebSocketPriceFeed: PriceFeed {
         updateInterval: Duration = .seconds(2),
         echoTimeout: Duration = .seconds(10),
         reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
+        now: @escaping @Sendable () -> Date = { .now },
         makeConnection: @escaping @Sendable () -> any WebSocketConnection
     ) {
         (events, continuation) = AsyncStream.makeStream()
@@ -78,6 +88,7 @@ actor WebSocketPriceFeed: PriceFeed {
         self.updateInterval = updateInterval
         self.echoTimeout = echoTimeout
         self.reconnectPolicy = reconnectPolicy
+        self.now = now
         self.makeConnection = makeConnection
     }
 
@@ -164,7 +175,7 @@ actor WebSocketPriceFeed: PriceFeed {
     }
 
     private func exchangeUpdates(over connection: any WebSocketConnection) async throws {
-        let updates = generator.next()
+        let updates = generator.next(at: now())
         guard !updates.isEmpty else { return }
         let message = String(decoding: try encoder.encode(updates), as: UTF8.self)
         try await connection.send(message)

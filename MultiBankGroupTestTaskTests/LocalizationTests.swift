@@ -21,7 +21,7 @@ struct LocalizationTests {
         "Price up", "Price down", "Price unchanged", "About",
         "Couldn't Load Symbols", "Check your connection and try again.",
         "Connection Problem", "Live prices are unavailable. The app will keep trying to reconnect.",
-        "Retry", "OK",
+        "Retry", "OK", "Updated %@",
     ]
 
     /// Returned by `localizedString` only when the key has no entry; a translation may equal its key (e.g. "OK").

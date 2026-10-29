@@ -36,12 +36,12 @@ struct StockMarketModelTests {
     @Test func priceUpdateRecordsNewPriceAndChange() async {
         let model = await makeModel()
 
-        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12.5)]))
-        #expect(model.quote(for: symbols[0]) == StockQuote(price: 12.5, change: 2.5))
+        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12.5, timestamp: .fixture)]))
+        #expect(model.quote(for: symbols[0]) == StockQuote(price: 12.5, change: 2.5, updatedAt: .fixture))
         #expect(model.quote(for: symbols[0]).direction == .up)
 
-        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11)]))
-        #expect(model.quote(for: symbols[0]) == StockQuote(price: 11, change: -1.5))
+        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture)]))
+        #expect(model.quote(for: symbols[0]) == StockQuote(price: 11, change: -1.5, updatedAt: .fixture))
         #expect(model.quote(for: symbols[0]).direction == .down)
     }
 
@@ -49,7 +49,7 @@ struct StockMarketModelTests {
         let model = await makeModel()
         let before = model.quotes
 
-        model.apply(.priceUpdates([PriceUpdate(symbol: "ZZZ", price: 1)]))
+        model.apply(.priceUpdates([PriceUpdate(symbol: "ZZZ", price: 1, timestamp: .fixture)]))
 
         #expect(model.quotes == before)
     }
@@ -87,13 +87,13 @@ struct StockMarketModelTests {
     @Test func observeFeedAppliesEventsInOrder() async {
         let model = await makeModel()
         feed.continuation.yield(.connectionChanged(.connected))
-        feed.continuation.yield(.priceUpdates([PriceUpdate(symbol: "CCC", price: 25)]))
+        feed.continuation.yield(.priceUpdates([PriceUpdate(symbol: "CCC", price: 25, timestamp: .fixture)]))
         feed.continuation.finish()
 
         await model.observeFeed()
 
         #expect(model.connectionState == .connected)
-        #expect(model.quote(for: symbols[2]) == StockQuote(price: 25, change: 5))
+        #expect(model.quote(for: symbols[2]) == StockQuote(price: 25, change: 5, updatedAt: .fixture))
     }
 
     @Test func loadingSymbolsTracksThemInTheFeed() async {
@@ -103,13 +103,13 @@ struct StockMarketModelTests {
 
     @Test func reloadKeepsQuotesOfRemainingSymbolsAndAddsNewOnes() async {
         let model = await makeModel()
-        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15)]))
+        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
         await repository.setResult(.success([symbols[0], .fixture("DDD", price: 5)]))
 
         await model.loadSymbols()
 
         #expect(model.symbols.map(\.ticker) == ["AAA", "DDD"])
-        #expect(model.quote(for: symbols[0]) == StockQuote(price: 15, change: 5))
+        #expect(model.quote(for: symbols[0]) == StockQuote(price: 15, change: 5, updatedAt: .fixture))
         #expect(model.quotes["BBB"] == nil)
         #expect(model.quotes["DDD"] == StockQuote(price: 5))
     }

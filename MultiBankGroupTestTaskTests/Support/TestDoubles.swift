@@ -158,6 +158,11 @@ actor FakeSymbolsRepository: SymbolsRepository {
     }
 }
 
+extension Date {
+    /// Fixed moment for deterministic timestamps; whole seconds, so it survives an ISO 8601 round trip.
+    static let fixture = Date(timeIntervalSince1970: 1_800_000_000)
+}
+
 extension StockSymbol {
     static func fixture(_ ticker: String, price: Decimal) -> StockSymbol {
         StockSymbol(ticker: ticker, name: "\(ticker) Inc.", summary: "", referencePrice: price)
