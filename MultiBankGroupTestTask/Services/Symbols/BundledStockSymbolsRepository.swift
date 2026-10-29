@@ -1,5 +1,5 @@
 //
-//  BundledStockSymbolsProvider.swift
+//  BundledStockSymbolsRepository.swift
 //  MultiBankGroupTestTask
 //
 //  Created by Siarhei Yakushevich on 29/10/2026.
@@ -13,7 +13,7 @@ import Foundation
 /// A struct, not an actor: it has no mutable state to protect. Its methods are `@concurrent`, so
 /// they run on the global concurrent executor — off the main thread — even when called from the
 /// main-actor model. If it gains state (a cache, in-flight request de-duplication), make it an actor.
-nonisolated struct BundledStockSymbolsProvider: StockSymbolsProvider {
+nonisolated struct BundledStockSymbolsRepository: StockSymbolsProvider {
     private let latency: Duration
 
     /// - Parameter latency: Simulated round-trip time, so loading states behave as against a server.

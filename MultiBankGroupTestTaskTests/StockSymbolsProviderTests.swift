@@ -11,7 +11,7 @@ import Testing
 
 /// The bundled provider behaves like the backend endpoints it stands in for.
 struct StockSymbolsProviderTests {
-    private let provider = BundledStockSymbolsProvider(latency: .zero)
+    private let provider = BundledStockSymbolsRepository(latency: .zero)
 
     @Test func listReturnsTheCatalog() async throws {
         #expect(try await provider.fetchStockSymbols() == StockSymbolPrice.catalog)

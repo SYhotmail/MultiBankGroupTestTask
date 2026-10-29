@@ -35,13 +35,13 @@ struct MultiBankGroupTestTaskApp: App {
 }
 
 extension StockMarketModel {
-    private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
-
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
-    static var live: StockMarketModel {
-        StockMarketModel(provider: BundledStockSymbolsProvider(), feed: WebSocketPriceFeed(url: priceFeedURL))
-    }
+    static var live: StockMarketModel { preview }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
-    static var preview: StockMarketModel { live }
+    static var preview: StockMarketModel {
+        let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
+
+        return StockMarketModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+    }
 }
