@@ -47,7 +47,8 @@ nonisolated extension FeedMessage: Codable {
     }
 }
 
-/// The single place that fixes the feed's wire format: JSON text frames with ISO 8601 dates.
+/// The single place that fixes the feed's message format: JSON (UTF-8 bytes) with ISO 8601 dates.
+/// Framing is the connection's job; it sends these bytes as WebSocket text frames.
 ///
 /// Not `Sendable`, because `JSONEncoder` and `JSONDecoder` aren't; whoever does the I/O owns an
 /// instance (the feed actor keeps one and reuses it).
@@ -56,17 +57,19 @@ nonisolated struct FeedMessageCodec {
     private let decoder: JSONDecoder
 
     init() {
-        encoder = JSONEncoder()
+        let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        decoder = JSONDecoder()
+        self.encoder = encoder
+        let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        self.decoder = decoder
     }
 
-    func encode(_ message: FeedMessage) throws -> String {
-        String(decoding: try encoder.encode(message), as: UTF8.self)
+    func encode(_ message: FeedMessage) throws -> Data {
+        try encoder.encode(message)
     }
 
-    func decode(_ text: String) throws -> FeedMessage {
-        try decoder.decode(FeedMessage.self, from: Data(text.utf8))
+    func decode(_ data: Data) throws -> FeedMessage {
+        try decoder.decode(FeedMessage.self, from: data)
     }
 }
