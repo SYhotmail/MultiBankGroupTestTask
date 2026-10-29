@@ -39,7 +39,7 @@ struct StockSymbolsNavigationView: View {
         }
     }
 
-    private func messageText(for alert: StockMarketModel.Issue) -> Text {
+    private func messageText(for alert: StockSymbolsIssue) -> Text {
         #if DEBUG
         if let detail = viewModel.alertDebugDescription {
             // Debug builds append the underlying error. It's for developers, so it isn't localized.
@@ -50,7 +50,7 @@ struct StockSymbolsNavigationView: View {
     }
 }
 
-private extension StockMarketModel.Issue {
+private extension StockSymbolsIssue {
     var title: LocalizedStringKey {
         switch self {
         case .symbolsUnavailable: "Couldn't Load Symbols"

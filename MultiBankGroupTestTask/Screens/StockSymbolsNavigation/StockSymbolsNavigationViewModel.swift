@@ -8,33 +8,49 @@
 import Foundation
 import Observation
 
-/// Root of the screen hierarchy. Creates and owns the shared `StockMarketModel` from the services it's
-/// given (nothing outside this view model sees the model), the list view model and the selection that
-/// drives the detail column, and turns model issues into alerts shown above whichever column is visible.
+/// Root of the screen hierarchy and their coordinator. Creates the shared `StockMarketModel` (the live
+/// connection) and the list view model from the services it's given, builds detail view models, owns the
+/// selection that drives the detail column, and shows the one alert that any of them reports.
 @MainActor
 @Observable
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
 
+    private(set) var alert: StockSymbolsIssue?
+    /// The error behind `alert`, for Debug builds.
+    private(set) var alertDebugDescription: String?
+
+    private let provider: any StockSymbolsProvider
     private let market: StockMarketModel
     private var storedSelection: String?
 
     init(provider: any StockSymbolsProvider, feed: any PriceFeed) {
-        let market = StockMarketModel(provider: provider, feed: feed)
+        let market = StockMarketModel(feed: feed)
+        self.provider = provider
         self.market = market
-        listViewModel = StockSymbolsListViewModel(market: market)
+        listViewModel = StockSymbolsListViewModel(provider: provider, market: market)
+
+        // Weak: this view model owns the market and the list, so strong captures would be retain cycles.
+        market.onConnectionLost = { [weak self] reason in self?.report(.connectionLost, debugDescription: reason) }
+        listViewModel.onIssue = { [weak self] issue, reason in self?.report(issue, debugDescription: reason) }
     }
 
     /// Ticker of the symbol shown in the detail column. Reads as `nil` once that symbol is deleted
     /// (a `404`, or a list reload without it), which closes the detail.
     var selectedTicker: String? {
-        get { storedSelection.flatMap { market.symbol(ticker: $0)?.ticker } }
+        get { storedSelection.flatMap { listViewModel.symbol(ticker: $0)?.ticker } }
         set { storedSelection = newValue }
     }
 
-    var selectedSymbol: StockSymbol? { selectedTicker.flatMap { market.symbol(ticker: $0) } }
+    var selectedSymbol: StockSymbol? { selectedTicker.flatMap { listViewModel.symbol(ticker: $0) } }
 
-    /// Turns feed events into model updates until the feed's stream ends. Run once for the app's lifetime.
+    func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
+        StockSymbolDetailViewModel(symbol: symbol, provider: provider, list: listViewModel, market: market) { [weak self] issue, reason in
+            self?.report(issue, debugDescription: reason)
+        }
+    }
+
+    /// Turns feed events into live quotes until the feed's stream ends. Run once for the app's lifetime.
     func observeFeed() async {
         await market.observeFeed()
     }
@@ -47,25 +63,28 @@ final class StockSymbolsNavigationViewModel {
         await market.appDidBecomeActive()
     }
 
-    var alert: StockMarketModel.Issue? { market.issue }
-
-    /// The error behind `alert`, for Debug builds.
-    var alertDebugDescription: String? { market.issueDebugDescription }
-
-    func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: symbol, market: market)
-    }
-
     func dismissAlert() {
-        market.clearIssue()
+        alert = nil
+        alertDebugDescription = nil
     }
 
-    func retry(_ issue: StockMarketModel.Issue) async {
-        market.clearIssue()
+    func retry(_ issue: StockSymbolsIssue) async {
+        dismissAlert()
         switch issue {
-        case .symbolsUnavailable: await market.loadSymbols()
-        case .symbolUnavailable(let ticker): await market.refreshSymbol(ticker: ticker)
-        case .connectionLost: await market.reconnectFeed()
+        case .symbolsUnavailable:
+            await listViewModel.load()
+        case .symbolUnavailable(let ticker):
+            guard let symbol = listViewModel.symbol(ticker: ticker) else { return }
+            await detailViewModel(for: symbol).refresh()
+        case .connectionLost:
+            await market.reconnect()
         }
+    }
+
+    /// Shows `issue` unless an alert is already showing: don't replace one the user hasn't seen yet.
+    private func report(_ issue: StockSymbolsIssue, debugDescription: String) {
+        guard alert == nil else { return }
+        alert = issue
+        alertDebugDescription = debugDescription
     }
 }

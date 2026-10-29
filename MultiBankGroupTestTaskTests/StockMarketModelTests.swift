@@ -2,56 +2,117 @@
 //  StockMarketModelTests.swift
 //  MultiBankGroupTestTaskTests
 //
-//  Created by Siarhei Yakushevich on 28/10/2026.
+//  Created by Siarhei Yakushevich on 29/10/2026.
 //
 
 import Foundation
 import Testing
 @testable import MultiBankGroupTestTask
 
+/// The shared live connection: feed control, live quotes and which symbols are priced.
 @MainActor
 struct StockMarketModelTests {
     private let feed = FakePriceFeed()
-    private let provider = FakeStockSymbolsProvider()
     private let catalog: [StockSymbolPrice] = [
         .fixture("AAA", price: 10),
         .fixture("BBB", price: 30),
         .fixture("CCC", price: 20),
     ]
 
-    /// A model with `catalog` already loaded.
+    /// A model pricing `catalog`.
     private func makeModel() async -> StockMarketModel {
-        await provider.setResult(.success(catalog))
-        let model = StockMarketModel(provider: provider, feed: feed)
-        await model.loadSymbols()
+        let model = StockMarketModel(feed: feed)
+        await model.track(catalog)
         return model
     }
 
-    @Test func startsWithReferencePricesAndNoChange() async {
+    // MARK: - Tracking
+
+    @Test func trackingStartsQuotesAtTheGivenPrices() async {
         let model = await makeModel()
-        #expect(model.quote(for: catalog[0].symbol) == StockQuote(price: 10, updatedAt: .referenceFixture))
-        #expect(model.connectionState == .disconnected)
+
+        #expect(model.quote(for: "AAA") == StockQuote(price: 10, updatedAt: .referenceFixture))
+        #expect(await feed.trackedSymbols == catalog)
     }
+
+    @Test func retrackingKeepsLiveQuotesAddsNewAndDropsMissing() async {
+        let model = await makeModel()
+        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
+
+        await model.track([catalog[0], .fixture("DDD", price: 5)])
+
+        #expect(model.quote(for: "AAA") == StockQuote(price: 15, change: 5, updatedAt: .fixture))
+        #expect(model.quote(for: "DDD") == StockQuote(price: 5, updatedAt: .referenceFixture))
+        #expect(model.quote(for: "BBB") == nil)
+    }
+
+    @Test func duplicateTickersKeepTheFirstOccurrence() async {
+        let model = StockMarketModel(feed: feed)
+
+        await model.track([.fixture("AAA", price: 1), .fixture("AAA", price: 2)])
+
+        #expect(model.quote(for: "AAA")?.price == 1)
+        #expect(await feed.trackedSymbols.count == 1)
+    }
+
+    @Test func untrackStopsPricingASymbol() async {
+        let model = await makeModel()
+
+        await model.untrack(ticker: "BBB")
+
+        #expect(model.quote(for: "BBB") == nil)
+        #expect(await feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
+    }
+
+    // MARK: - Prices
 
     @Test func priceUpdateRecordsNewPriceAndChange() async {
         let model = await makeModel()
 
         model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12.5, timestamp: .fixture)]))
-        #expect(model.quote(for: catalog[0].symbol) == StockQuote(price: 12.5, change: 2.5, updatedAt: .fixture))
-        #expect(model.quote(for: catalog[0].symbol)?.direction == .up)
+        #expect(model.quote(for: "AAA") == StockQuote(price: 12.5, change: 2.5, updatedAt: .fixture))
+        #expect(model.quote(for: "AAA")?.direction == .up)
 
         model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture)]))
-        #expect(model.quote(for: catalog[0].symbol) == StockQuote(price: 11, change: -1.5, updatedAt: .fixture))
-        #expect(model.quote(for: catalog[0].symbol)?.direction == .down)
+        #expect(model.quote(for: "AAA") == StockQuote(price: 11, change: -1.5, updatedAt: .fixture))
+        #expect(model.quote(for: "AAA")?.direction == .down)
     }
 
-    @Test func updatesForUnknownSymbolsAreIgnored() async {
+    @Test func updatesForUntrackedSymbolsAreIgnored() async {
         let model = await makeModel()
         let before = model.quotes
 
         model.apply(.priceUpdates([PriceUpdate(symbol: "ZZZ", price: 1, timestamp: .fixture)]))
 
         #expect(model.quotes == before)
+    }
+
+    @Test func applyIfNewerTakesANewerPrice() async {
+        let model = await makeModel()
+
+        model.applyIfNewer(.fixture("BBB", price: 33, at: .fixture))
+
+        #expect(model.quote(for: "BBB") == StockQuote(price: 33, change: 3, updatedAt: .fixture))
+    }
+
+    @Test func applyIfNewerIgnoresAnOlderPrice() async {
+        let model = await makeModel()
+        model.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
+
+        model.applyIfNewer(.fixture("BBB", price: 99, at: .referenceFixture))
+
+        #expect(model.quote(for: "BBB") == StockQuote(price: 31, change: 1, updatedAt: .fixture))
+    }
+
+    // MARK: - Connection
+
+    @Test func connectionChangeIsRecorded() async {
+        let model = await makeModel()
+
+        model.apply(.connectionChanged(.connected))
+
+        #expect(model.connectionState == .connected)
+        #expect(model.isFeedRunning)
     }
 
     @Test(arguments: [ConnectionState.connecting, .connected])
@@ -74,14 +135,26 @@ struct StockMarketModelTests {
         #expect(await feed.stopCount == 0)
     }
 
-    @Test func appLifecycleSuspendsAndResumesTheFeed() async {
+    @Test func reconnectAndLifecycleReachTheFeed() async {
         let model = await makeModel()
 
+        await model.reconnect()
         await model.appDidEnterBackground()
         await model.appDidBecomeActive()
 
+        #expect(await feed.reconnectCount == 1)
         #expect(await feed.suspendCount == 1)
         #expect(await feed.resumeCount == 1)
+    }
+
+    @Test func connectionLostIsReportedWithItsReason() async {
+        let model = await makeModel()
+        var reasons: [String] = []
+        model.onConnectionLost = { reasons.append($0) }
+
+        model.apply(.connectionLost(reason: "socket closed"))
+
+        #expect(reasons == ["socket closed"])
     }
 
     @Test func observeFeedAppliesEventsInOrder() async {
@@ -93,193 +166,6 @@ struct StockMarketModelTests {
         await model.observeFeed()
 
         #expect(model.connectionState == .connected)
-        #expect(model.quote(for: catalog[2].symbol) == StockQuote(price: 25, change: 5, updatedAt: .fixture))
-    }
-
-    @Test func loadingSymbolsTracksThemInTheFeed() async {
-        _ = await makeModel()
-        #expect(await feed.trackedSymbols == catalog)
-    }
-
-    @Test func reloadKeepsQuotesOfRemainingSymbolsAndAddsNewOnes() async {
-        let model = await makeModel()
-        model.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
-        await provider.setResult(.success([catalog[0], .fixture("DDD", price: 5)]))
-
-        await model.loadSymbols()
-
-        #expect(model.symbols.map(\.ticker) == ["AAA", "DDD"])
-        #expect(model.quote(for: catalog[0].symbol) == StockQuote(price: 15, change: 5, updatedAt: .fixture))
-        #expect(model.quotes["BBB"] == nil)
-        #expect(model.quotes["DDD"] == StockQuote(price: 5, updatedAt: .referenceFixture))
-    }
-
-    @Test func duplicateTickersKeepTheFirstOccurrence() async {
-        await provider.setResult(.success([.fixture("AAA", price: 1), .fixture("AAA", price: 2)]))
-        let model = StockMarketModel(provider: provider, feed: feed)
-
-        await model.loadSymbols()
-
-        #expect(model.symbols.map(\.ticker) == ["AAA"])
-        #expect(model.quotes["AAA"]?.price == 1)
-    }
-
-    @Test func failedLoadRaisesIssueAndKeepsCurrentSymbols() async {
-        let model = await makeModel()
-        await provider.setResult(.failure(TestError()))
-
-        await model.loadSymbols()
-
-        #expect(model.issue == .symbolsUnavailable)
-        #expect(model.symbols == catalog.map(\.symbol))
-        #expect(!model.isLoadingSymbols)
-    }
-
-    @Test func refreshReconnectsFeedAndReloadsSymbols() async {
-        let model = await makeModel()
-        await provider.setResult(.success([catalog[2]]))
-
-        await model.refresh()
-
-        #expect(await feed.reconnectCount == 1)
-        #expect(model.symbols == [catalog[2].symbol])
-    }
-
-    @Test func connectionLostDoesNotReplaceAnUnseenIssue() async {
-        let model = await makeModel()
-        await provider.setResult(.failure(TestError()))
-        await model.loadSymbols()
-
-        model.apply(.connectionLost(reason: "test"))
-
-        #expect(model.issue == .symbolsUnavailable)
-    }
-
-    @Test func connectionLostRaisesIssue() async {
-        let model = await makeModel()
-        model.apply(.connectionLost(reason: "test"))
-        #expect(model.issue == .connectionLost)
-    }
-
-    @Test func clearIssueRemovesIt() async {
-        let model = await makeModel()
-        model.apply(.connectionLost(reason: "test"))
-
-        model.clearIssue()
-
-        #expect(model.issue == nil)
-    }
-
-    // MARK: - Single-symbol refresh
-
-    @Test func refreshSymbolUpdatesItsDetails() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.success(.fixture("BBB", name: "BBB Holdings", price: 30)))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.symbol(ticker: "BBB")?.name == "BBB Holdings")
-        #expect(model.symbols.map(\.ticker) == ["AAA", "BBB", "CCC"])
-    }
-
-    @Test func refreshSymbolTakesANewerPrice() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.success(.fixture("BBB", price: 33, at: .fixture)))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.quotes["BBB"] == StockQuote(price: 33, change: 3, updatedAt: .fixture))
-    }
-
-    @Test func refreshSymbolKeepsANewerLiveQuote() async {
-        let model = await makeModel()
-        model.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
-        // The backend's price is older than the live update.
-        await provider.setSymbolResult(.success(.fixture("BBB", price: 99, at: .referenceFixture)))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.quotes["BBB"] == StockQuote(price: 31, change: 1, updatedAt: .fixture))
-    }
-
-    @Test func refreshSymbolIgnoresAResponseForAnotherSymbol() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.success(.fixture("CCC", name: "Wrong", price: 1, at: .fixture)))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.symbols == catalog.map(\.symbol))
-        #expect(model.quotes["CCC"] == StockQuote(price: 20, updatedAt: .referenceFixture))
-    }
-
-    @Test func refreshSymbolFailureRaisesIssueAndKeepsData() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.failure(TestError()))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.issue == .symbolUnavailable(ticker: "BBB"))
-        #expect(model.symbols == catalog.map(\.symbol))
-    }
-
-    @Test func refreshSymbolNotFoundRemovesTheSymbol() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.failure(StockSymbolsProviderError.notFound(id: "BBB")))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.symbols.map(\.ticker) == ["AAA", "CCC"])
-        #expect(model.quotes["BBB"] == nil)
-        #expect(await feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
-        // A deletion is not an error.
-        #expect(model.issue == nil)
-    }
-
-    // MARK: - Debug descriptions
-
-    @Test func failedLoadKeepsTheUnderlyingError() async {
-        let model = await makeModel()
-        await provider.setResult(.failure(TestError()))
-
-        await model.loadSymbols()
-
-        #expect(model.issueDebugDescription?.contains("TestError") == true)
-    }
-
-    @Test func failedRefreshKeepsTheUnderlyingError() async {
-        let model = await makeModel()
-        await provider.setSymbolResult(.failure(TestError()))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.issueDebugDescription?.contains("TestError") == true)
-    }
-
-    @Test func connectionLostKeepsTheFeedsReason() async {
-        let model = await makeModel()
-
-        model.apply(.connectionLost(reason: "socket closed"))
-
-        #expect(model.issueDebugDescription == "socket closed")
-    }
-
-    @Test func anUnseenIssueKeepsItsOwnDescription() async {
-        let model = await makeModel()
-        model.apply(.connectionLost(reason: "first"))
-        await provider.setSymbolResult(.failure(TestError()))
-
-        await model.refreshSymbol(ticker: "BBB")
-
-        #expect(model.issue == .connectionLost)
-        #expect(model.issueDebugDescription == "first")
-    }
-
-    @Test func clearIssueAlsoClearsTheDescription() async {
-        let model = await makeModel()
-        model.apply(.connectionLost(reason: "first"))
-
-        model.clearIssue()
-
-        #expect(model.issueDebugDescription == nil)
+        #expect(model.quote(for: "CCC") == StockQuote(price: 25, change: 5, updatedAt: .fixture))
     }
 }
