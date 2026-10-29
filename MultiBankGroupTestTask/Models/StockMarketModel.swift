@@ -8,99 +8,59 @@
 import Foundation
 import Observation
 
-/// The Model in MVVM: live symbols, quotes and feed state shared by every screen's view model.
-/// Knows nothing about presentation (sorting, alerts, formatting).
+/// The live connection, shared by every screen: the WebSocket feed's state and the live quote of each
+/// tracked symbol. Which symbols exist is the list's business; this model only prices what it's told to track.
 ///
-/// Main-actor isolated because SwiftUI observes it. The feed it drives is an actor and the provider's
-/// methods are `@concurrent`, so their work runs off the main thread and results come back here with `await`.
+/// Main-actor isolated because SwiftUI observes it. The feed it drives is an actor, so feed work runs
+/// off the main thread and results come back here with `await`.
 @MainActor
 @Observable
 final class StockMarketModel {
-    /// A problem the user should hear about.
-    enum Issue: Equatable {
-        case symbolsUnavailable
-        case symbolUnavailable(ticker: String)
-        case connectionLost
-    }
-
-    private(set) var symbols: [StockSymbol] = []
     private(set) var quotes: [String: StockQuote] = [:]
     private(set) var connectionState: ConnectionState = .disconnected
-    private(set) var isLoadingSymbols = false
-    private(set) var issue: Issue?
-    /// The error behind `issue`, for debugging; Debug builds show it in the alert.
-    private(set) var issueDebugDescription: String?
 
-    private let provider: any StockSymbolsProvider
+    /// Called once per outage with a description of the underlying error.
+    @ObservationIgnored var onConnectionLost: (@MainActor (String) -> Void)?
+
     private let feed: any PriceFeed
+    /// What the feed generates prices for.
+    private var tracked: [StockSymbolPrice] = []
 
-    init(provider: any StockSymbolsProvider, feed: any PriceFeed) {
-        self.provider = provider
+    init(feed: any PriceFeed) {
         self.feed = feed
     }
 
     var isFeedRunning: Bool { connectionState != .disconnected }
 
-    /// The tracked symbol with this ticker, or `nil` if the model doesn't track it.
-    func symbol(ticker: String) -> StockSymbol? {
-        symbols.first { $0.ticker == ticker }
+    func quote(for ticker: String) -> StockQuote? {
+        quotes[ticker]
     }
 
-    /// The live quote, or `nil` for a symbol the model doesn't track (e.g. removed by a refresh).
-    func quote(for symbol: StockSymbol) -> StockQuote? {
-        quotes[symbol.ticker]
-    }
-
-    /// Fetches the symbol list. Quotes of symbols that remain are kept; a failure raises an issue.
-    func loadSymbols() async {
-        isLoadingSymbols = true
-        defer { isLoadingSymbols = false }
-        do {
-            await replaceSymbols(with: try await provider.fetchStockSymbols())
-        } catch is CancellationError {
-            // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
-        } catch {
-            issue = .symbolsUnavailable
-            issueDebugDescription = String(reflecting: error)
-        }
-    }
-
-    /// Re-fetches one symbol (`GET /symbols/{id}`). Updates its details, and its quote when the
-    /// backend's price is newer than the live one; a failure raises an issue.
-    func refreshSymbol(ticker: String) async {
-        do {
-            let fetched = try await provider.fetchStockSymbol(id: ticker)
-            // Trust boundary: accept only the symbol we asked for, and only while we still track it.
-            guard fetched.symbol.ticker == ticker,
-                  let index = symbols.firstIndex(where: { $0.ticker == ticker }) else { return }
-            symbols[index] = fetched.symbol
-            if let quote = quotes[ticker], fetched.timestamp > quote.updatedAt {
-                quotes[ticker] = quote.updated(to: fetched.price, at: fetched.timestamp)
-            }
-        } catch StockSymbolsProviderError.notFound {
-            // The backend deleted the symbol: stop tracking it, as a list reload without it would.
-            await removeSymbol(ticker: ticker)
-        } catch is CancellationError {
-            // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
-        } catch {
-            raiseUnlessPending(.symbolUnavailable(ticker: ticker), debugDescription: String(reflecting: error))
-        }
-    }
-
-    private func removeSymbol(ticker: String) async {
-        guard symbols.contains(where: { $0.ticker == ticker }) else { return }
-        symbols.removeAll { $0.ticker == ticker }
-        quotes[ticker] = nil
-        // The feed keeps its own prices for symbols it already tracks, so passing the current quotes is enough.
-        await feed.track(symbols.compactMap { symbol in
-            quotes[symbol.ticker].map { StockSymbolPrice(symbol: symbol, price: $0.price, timestamp: $0.updatedAt) }
+    /// Prices exactly these symbols from now on. Symbols already tracked keep their live quote; new ones
+    /// start from the given price; others are dropped. Duplicate tickers keep the first occurrence.
+    func track(_ symbolPrices: [StockSymbolPrice]) async {
+        var seen = Set<String>()
+        tracked = symbolPrices.filter { seen.insert($0.symbol.ticker).inserted }
+        quotes = Dictionary(uniqueKeysWithValues: tracked.map { symbolPrice in
+            let ticker = symbolPrice.symbol.ticker
+            return (ticker, quotes[ticker] ?? StockQuote(price: symbolPrice.price, updatedAt: symbolPrice.timestamp))
         })
+        await feed.track(tracked)
     }
 
-    /// Reconnects the running feed right away and reloads the symbol list.
-    func refresh() async {
-        await feed.reconnect()
-        await loadSymbols()
+    /// Stops pricing one symbol, e.g. after the backend deleted it.
+    func untrack(ticker: String) async {
+        tracked.removeAll { $0.symbol.ticker == ticker }
+        quotes[ticker] = nil
+        // The feed keeps its own prices for symbols it already tracks.
+        await feed.track(tracked)
+    }
+
+    /// Takes a price from the backend when it's newer than the live quote; an older one is ignored.
+    func applyIfNewer(_ symbolPrice: StockSymbolPrice) {
+        let ticker = symbolPrice.symbol.ticker
+        guard let quote = quotes[ticker], symbolPrice.timestamp > quote.updatedAt else { return }
+        quotes[ticker] = quote.updated(to: symbolPrice.price, at: symbolPrice.timestamp)
     }
 
     func toggleFeed() async {
@@ -111,13 +71,9 @@ final class StockMarketModel {
         }
     }
 
-    func reconnectFeed() async {
+    /// Reconnects the running feed right away, skipping any backoff wait.
+    func reconnect() async {
         await feed.reconnect()
-    }
-
-    func clearIssue() {
-        issue = nil
-        issueDebugDescription = nil
     }
 
     /// The app moved to the background; sockets don't survive suspension, so drop it cleanly.
@@ -148,27 +104,7 @@ final class StockMarketModel {
                 quotes[update.symbol] = quote.updated(to: update.price, at: update.timestamp)
             }
         case .connectionLost(let reason):
-            raiseUnlessPending(.connectionLost, debugDescription: reason)
+            onConnectionLost?(reason)
         }
-    }
-
-    /// Raises `newIssue` unless one is already showing: don't replace an issue the user hasn't seen yet.
-    private func raiseUnlessPending(_ newIssue: Issue, debugDescription: String) {
-        guard issue == nil else { return }
-        issue = newIssue
-        issueDebugDescription = debugDescription
-    }
-
-    private func replaceSymbols(with fetched: [StockSymbolPrice]) async {
-        // Remote data may repeat a ticker; keep the first so tickers stay unique identifiers.
-        var seen = Set<String>()
-        let unique = fetched.filter { seen.insert($0.symbol.ticker).inserted }
-        // Symbols that remain keep their live quote; new ones start from the fetched price.
-        quotes = Dictionary(uniqueKeysWithValues: unique.map { symbolPrice in
-            let ticker = symbolPrice.symbol.ticker
-            return (ticker, quotes[ticker] ?? StockQuote(price: symbolPrice.price, updatedAt: symbolPrice.timestamp))
-        })
-        symbols = unique.map(\.symbol)
-        await feed.track(unique)
     }
 }
