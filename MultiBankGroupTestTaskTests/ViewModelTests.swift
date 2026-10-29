@@ -38,7 +38,7 @@ private struct Fixture {
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
         market = StockMarketModel(feed: feed)
-        list = StockSymbolsListViewModel(provider: provider, market: market)
+        list = StockSymbolsListViewModel(provider: provider, market: market, feed: feed)
         list.onIssue = issues.handler
     }
 
@@ -47,7 +47,7 @@ private struct Fixture {
     }
 
     func detail(_ index: Int) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: catalog[index].symbol, provider: provider, list: list, market: market, onIssue: issues.handler)
+        StockSymbolDetailViewModel(symbol: catalog[index].symbol, provider: provider, list: list, market: market, feed: feed, onIssue: issues.handler)
     }
 }
 
@@ -174,6 +174,27 @@ struct StockSymbolsListViewModelTests {
         #expect(fixture.list.symbols.map(\.ticker) == ["AAA", "CCC"])
         #expect(fixture.market.quote(for: "BBB") == nil)
         #expect(await fixture.feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
+    }
+
+    // MARK: - Feed controls (BaseViewModel)
+
+    @Test(arguments: [ConnectionState.connecting, .connected])
+    func toggleStopsARunningFeed(state: ConnectionState) async {
+        let fixture = Fixture()
+        fixture.market.apply(.connectionChanged(state))
+
+        await fixture.list.toggleFeed()
+
+        #expect(await fixture.feed.stopCount == 1)
+        #expect(await fixture.feed.startCount == 0)
+    }
+
+    @Test func reconnectFeedReachesTheFeed() async {
+        let fixture = Fixture()
+
+        await fixture.list.reconnectFeed()
+
+        #expect(await fixture.feed.reconnectCount == 1)
     }
 
     @Test func toggleAndConnectionStateGoThroughTheMarket() async {
@@ -452,10 +473,10 @@ struct StockSymbolsNavigationViewModelTests {
     @Test func lifecycleHooksReachTheFeed() async {
         let fixture = NavigationFixture()
 
-        await fixture.viewModel.appDidEnterBackground()
-        await fixture.viewModel.appDidBecomeActive()
-
-        #expect(await fixture.feed.suspendCount == 1)
-        #expect(await fixture.feed.resumeCount == 1)
+        // The hooks start their own task, so wait for the feed to receive the calls.
+        fixture.viewModel.appDidEnterBackground()
+        #expect(await eventually { await fixture.feed.suspendCount == 1 })
+        fixture.viewModel.appDidBecomeActive()
+        #expect(await eventually { await fixture.feed.resumeCount == 1 })
     }
 }

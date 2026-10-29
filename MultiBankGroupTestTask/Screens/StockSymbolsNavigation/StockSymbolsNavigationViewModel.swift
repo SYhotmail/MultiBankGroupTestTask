@@ -23,12 +23,14 @@ final class StockSymbolsNavigationViewModel {
     private let provider: any StockSymbolsProvider
     private let market: StockMarketModel
     private var storedSelection: String?
-
+    let feed: any PriceFeed
+    
     init(provider: any StockSymbolsProvider, feed: any PriceFeed) {
         let market = StockMarketModel(feed: feed)
         self.provider = provider
         self.market = market
-        listViewModel = StockSymbolsListViewModel(provider: provider, market: market)
+        self.feed = feed
+        listViewModel = StockSymbolsListViewModel(provider: provider, market: market, feed: feed)
 
         // Weak: this view model owns the market and the list, so strong captures would be retain cycles.
         market.onConnectionLost = { [weak self] reason in self?.report(.connectionLost, debugDescription: reason) }
@@ -45,7 +47,7 @@ final class StockSymbolsNavigationViewModel {
     var selectedSymbol: StockSymbol? { selectedTicker.flatMap { listViewModel.symbol(ticker: $0) } }
 
     func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: symbol, provider: provider, list: listViewModel, market: market) { [weak self] issue, reason in
+        StockSymbolDetailViewModel(symbol: symbol, provider: provider, list: listViewModel, market: market, feed: feed) { [weak self] issue, reason in
             self?.report(issue, debugDescription: reason)
         }
     }
@@ -55,12 +57,17 @@ final class StockSymbolsNavigationViewModel {
         await market.observeFeed()
     }
 
-    func appDidEnterBackground() async {
-        await market.appDidEnterBackground()
+    func appDidEnterBackground() {
+        Task {
+            await feed.suspend()
+        }
     }
+    
 
-    func appDidBecomeActive() async {
-        await market.appDidBecomeActive()
+    func appDidBecomeActive() {
+        Task {
+            await feed.resume()
+        }
     }
 
     func dismissAlert() {
@@ -77,7 +84,7 @@ final class StockSymbolsNavigationViewModel {
             guard let symbol = listViewModel.symbol(ticker: ticker) else { return }
             await detailViewModel(for: symbol).refresh()
         case .connectionLost:
-            await market.reconnect()
+            await feed.reconnect()
         }
     }
 

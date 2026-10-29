@@ -15,11 +15,18 @@ enum PriceFeedEvent: Equatable, Sendable {
     case connectionLost(reason: String)
 }
 
-/// A source of live prices that can be started and stopped. An actor, so feed work never runs on
-/// the main thread; callers interact with it asynchronously.
-protocol PriceFeed: Actor {
+nonisolated
+protocol StockSymbolPriceTracker {
+    /// Generates updates for these symbols from now on, starting from the given prices.
+    
+    func track(_ symbolPrices: [StockSymbolPrice]) async
     /// Single-consumer stream that lives as long as the feed, across start/stop cycles.
     nonisolated var events: AsyncStream<PriceFeedEvent> { get }
+}
+
+/// A source of live prices that can be started and stopped. An actor, so feed work never runs on
+/// the main thread; callers interact with it asynchronously.
+protocol PriceFeed: Actor, StockSymbolPriceTracker {
     /// User intent: keep the feed running, reconnecting as needed.
     func start()
     /// User intent: stop the feed.
@@ -30,8 +37,6 @@ protocol PriceFeed: Actor {
     func resume()
     /// Reconnects immediately if the feed is running, skipping any backoff wait.
     func reconnect()
-    /// Generates updates for these symbols from now on, starting from the given prices.
-    func track(_ symbolPrices: [StockSymbolPrice])
 }
 
 /// Delay before reconnecting: exponential growth from `initialDelay`, capped at `maxDelay`.
