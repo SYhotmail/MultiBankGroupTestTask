@@ -8,18 +8,42 @@
 import Foundation
 import Observation
 
-/// Root of the screen hierarchy: owns the list view model, builds detail view models and turns
-/// model issues into alerts shown above whichever screen is visible.
+/// Root of the screen hierarchy. Owns the shared `StockMarketModel` (nothing outside this view model
+/// touches it), the list view model and the selection that drives the detail column, and turns model
+/// issues into alerts shown above whichever column is visible.
 @MainActor
 @Observable
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
 
     private let market: StockMarketModel
+    private var storedSelection: String?
 
     init(market: StockMarketModel) {
         self.market = market
         listViewModel = StockSymbolsListViewModel(market: market)
+    }
+
+    /// Ticker of the symbol shown in the detail column. Reads as `nil` once that symbol is deleted
+    /// (a `404`, or a list reload without it), which closes the detail.
+    var selectedTicker: String? {
+        get { storedSelection.flatMap { market.symbol(ticker: $0)?.ticker } }
+        set { storedSelection = newValue }
+    }
+
+    var selectedSymbol: StockSymbol? { selectedTicker.flatMap { market.symbol(ticker: $0) } }
+
+    /// Turns feed events into model updates until the feed's stream ends. Run once for the app's lifetime.
+    func observeFeed() async {
+        await market.observeFeed()
+    }
+
+    func appDidEnterBackground() async {
+        await market.appDidEnterBackground()
+    }
+
+    func appDidBecomeActive() async {
+        await market.appDidBecomeActive()
     }
 
     var alert: StockMarketModel.Issue? { market.issue }
