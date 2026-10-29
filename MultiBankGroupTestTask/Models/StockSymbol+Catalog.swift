@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension StockSymbol {
+nonisolated extension StockSymbol {
     /// The 25 symbols tracked by the app. Summaries are localized; tickers and company names are not.
     static let catalog: [StockSymbol] = [
         StockSymbol(ticker: "AAPL", name: "Apple Inc.", summary: String(localized: "Designs and sells iPhone, Mac, iPad, wearables and a growing portfolio of services such as the App Store, iCloud and Apple Music."), referencePrice: 228.50),

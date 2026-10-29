@@ -7,14 +7,15 @@
 
 import Foundation
 
-enum PriceDirection: Sendable {
+nonisolated enum PriceDirection: Sendable {
     case up
     case down
     case unchanged
 }
 
 /// Current price of a symbol and its change since the previous update.
-struct StockQuote: Equatable, Sendable {
+/// Explicitly `nonisolated`: plain data, usable from any actor regardless of the module's default isolation.
+nonisolated struct StockQuote: Equatable, Sendable {
     let price: Decimal
     let change: Decimal
 
@@ -35,12 +36,12 @@ struct StockQuote: Equatable, Sendable {
 }
 
 /// Wire format of a single price update sent to, and echoed back by, the WebSocket.
-struct PriceUpdate: Codable, Equatable, Sendable {
+nonisolated struct PriceUpdate: Codable, Equatable, Sendable {
     let symbol: String
     let price: Decimal
 }
 
-enum ConnectionState: Equatable, Sendable {
+nonisolated enum ConnectionState: Equatable, Sendable {
     case disconnected
     case connecting
     case connected
