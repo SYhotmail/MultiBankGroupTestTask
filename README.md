@@ -119,8 +119,10 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 
 ## Source control
 
-- `main` holds the initial project; features are developed on a feature branch (`NetworkLayer`) and merged into `main` through a pull request.
-- Small, single-purpose commits with descriptive messages (feature, UI, resilience, localization, tests).
+- `main` is the stable branch: it always builds and passes the tests.
+- Work happens on feature branches. The whole implementation was built on `NetworkLayer` and merged into `main` with a merge commit (`--no-ff`), so the feature's history stays grouped and can be reverted as one unit.
+- Small, single-purpose commits with descriptive messages: the price feed and models, the screens and store, tests, UI refinements, reconnect and background handling, localization, pull-to-refresh and error alerts, and this README.
+- Generated and per-user files (`xcuserdata/`, `DerivedData/`, `build/`, `.DS_Store`) are excluded via `.gitignore`.
 
 ## Known limitations
 
