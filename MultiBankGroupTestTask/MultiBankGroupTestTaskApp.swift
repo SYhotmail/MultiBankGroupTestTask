@@ -5,6 +5,7 @@
 //  Created by Siarhei Yakushevich on 28/10/2026.
 //
 
+import OSLog
 import SwiftUI
 
 @main
@@ -37,6 +38,6 @@ extension StockSymbolsNavigationViewModel {
     static var preview: StockSymbolsNavigationViewModel {
         let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
-        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL))
+        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL), logger: .viewModels)
     }
 }

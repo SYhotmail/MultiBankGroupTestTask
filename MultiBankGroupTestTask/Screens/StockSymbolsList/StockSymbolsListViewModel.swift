@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import OSLog
 
 /// The symbols list: owns which symbols exist (loaded from the provider), sorting and the feed
 /// controls shown above the list. Live prices come from the shared `StockMarketModel`.
@@ -30,7 +31,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     private(set) var isLoading = false
     
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
-    var rows: [Row] {
+    var rows: [Row] { // TODO: calculate rows instead of every time revaluation
         symbols
             .compactMap { symbol in market.quote(for: symbol.ticker).map { Row(symbol: symbol, quote: $0) } }
             .sorted { lhs, rhs in
@@ -72,9 +73,12 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
             let unique = fetched.filter { seen.insert($0.symbol.ticker).inserted }
             await market.track(unique)
             symbols = unique.map(\.symbol)
+            logger.info("Loaded \(unique.count) symbols")
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
+            logger.debug("Symbols load cancelled")
         } catch {
+            logger.error("Couldn't load symbols: \(String(reflecting: error))")
             onIssue?(.symbolsUnavailable, String(reflecting: error))
         }
     }
@@ -89,6 +93,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     func remove(ticker: String) async {
         guard symbols.contains(where: { $0.ticker == ticker }) else { return }
         symbols.removeAll { $0.ticker == ticker }
+        logger.notice("Removed \(ticker, privacy: .public), deleted by the backend")
         await market.untrack(ticker: ticker)
     }
 }

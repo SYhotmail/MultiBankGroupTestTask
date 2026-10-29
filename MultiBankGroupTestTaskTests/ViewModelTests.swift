@@ -38,7 +38,7 @@ private struct Fixture {
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
         market = StockMarketModel(feed: feed)
-        list = StockSymbolsListViewModel(provider: provider, market: market, feed: feed)
+        list = StockSymbolsListViewModel(provider: provider, market: market, feed: feed, logger: .empty)
         list.onIssue = issues.handler
     }
 
@@ -47,7 +47,7 @@ private struct Fixture {
     }
 
     func detail(_ index: Int) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: catalog[index].symbol, list: list, provider: provider, market: market, feed: feed, onIssue: issues.handler)
+        StockSymbolDetailViewModel(symbol: catalog[index].symbol, list: list, provider: provider, market: market, feed: feed, logger: .empty, onIssue: issues.handler)
     }
 }
 
@@ -318,7 +318,7 @@ private struct NavigationFixture {
 
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
-        viewModel = StockSymbolsNavigationViewModel(provider: provider, feed: feed)
+        viewModel = StockSymbolsNavigationViewModel(provider: provider, feed: feed, logger: .empty)
     }
 
     func load() async {
