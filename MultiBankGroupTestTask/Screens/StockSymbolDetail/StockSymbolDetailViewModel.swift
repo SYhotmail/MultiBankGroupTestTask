@@ -12,11 +12,10 @@ import Observation
 /// quote from the shared `StockMarketModel`, and refreshing it from the backend (`GET /symbols/{id}`).
 @MainActor
 @Observable
-final class StockSymbolDetailViewModel {
+final class StockSymbolDetailViewModel: BaseViewModel {
     private let initialSymbol: StockSymbol
     private let provider: any StockSymbolsProvider
     private let list: StockSymbolsListViewModel
-    private let market: StockMarketModel
     private let onIssue: StockSymbolsIssueHandler
 
     init(
@@ -24,33 +23,32 @@ final class StockSymbolDetailViewModel {
         provider: any StockSymbolsProvider,
         list: StockSymbolsListViewModel,
         market: StockMarketModel,
+        feed: any PriceFeed,
         onIssue: @escaping StockSymbolsIssueHandler
     ) {
         initialSymbol = symbol
         self.provider = provider
         self.list = list
-        self.market = market
         self.onIssue = onIssue
+        super.init(market: market, feed: feed)
     }
-
+    
     private var ticker: String { initialSymbol.ticker }
-
+    
     /// The symbol's latest details (a refresh may update its name or description);
     /// falls back to the opened symbol once it's no longer listed.
-    var symbol: StockSymbol { list.symbol(ticker: ticker) ?? initialSymbol }
-
+    var symbol: StockSymbol { listSymbol() ?? initialSymbol }
+    
     /// `nil` once the symbol is no longer priced, e.g. a refresh removed it while this screen was open.
     var quote: StockQuote? { market.quote(for: ticker) }
-
-    var connectionState: ConnectionState { market.connectionState }
-
+    
     /// Pull-to-refresh: re-fetches this symbol. Updates its details, and its quote when the backend's
     /// price is newer than the live one. A `404` deletes the symbol; other failures are reported.
     func refresh() async {
         do {
             let fetched = try await provider.fetchStockSymbol(id: ticker)
             // Trust boundary: accept only the symbol we asked for, and only while it's still listed.
-            guard fetched.symbol.ticker == ticker, list.symbol(ticker: ticker) != nil else { return }
+            guard fetched.symbol.ticker == ticker, listSymbol() != nil else { return }
             list.replace(fetched.symbol)
             market.applyIfNewer(fetched)
         } catch StockSymbolsProviderError.notFound {
@@ -62,8 +60,8 @@ final class StockSymbolDetailViewModel {
             onIssue(.symbolUnavailable(ticker: ticker), String(reflecting: error))
         }
     }
-
-    func toggleFeed() async {
-        await market.toggleFeed()
+    
+    func listSymbol() -> StockSymbol? {
+        list.symbol(ticker: ticker)
     }
 }

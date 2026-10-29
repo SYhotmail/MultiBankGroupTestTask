@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import MultiBankGroupTestTask
 
-/// The shared live connection: feed control, live quotes and which symbols are priced.
+/// The shared live connection: live quotes, connection state and which symbols are priced.
 @MainActor
 struct StockMarketModelTests {
     private let feed = FakePriceFeed()
@@ -113,38 +113,6 @@ struct StockMarketModelTests {
 
         #expect(model.connectionState == .connected)
         #expect(model.isFeedRunning)
-    }
-
-    @Test(arguments: [ConnectionState.connecting, .connected])
-    func toggleStopsARunningFeed(state: ConnectionState) async {
-        let model = await makeModel()
-        model.apply(.connectionChanged(state))
-
-        await model.toggleFeed()
-
-        #expect(await feed.stopCount == 1)
-        #expect(await feed.startCount == 0)
-    }
-
-    @Test func toggleStartsAStoppedFeed() async {
-        let model = await makeModel()
-
-        await model.toggleFeed()
-
-        #expect(await feed.startCount == 1)
-        #expect(await feed.stopCount == 0)
-    }
-
-    @Test func reconnectAndLifecycleReachTheFeed() async {
-        let model = await makeModel()
-
-        await model.reconnect()
-        await model.appDidEnterBackground()
-        await model.appDidBecomeActive()
-
-        #expect(await feed.reconnectCount == 1)
-        #expect(await feed.suspendCount == 1)
-        #expect(await feed.resumeCount == 1)
     }
 
     @Test func connectionLostIsReportedWithItsReason() async {

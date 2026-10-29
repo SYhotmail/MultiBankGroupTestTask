@@ -22,11 +22,11 @@ final class StockMarketModel {
     /// Called once per outage with a description of the underlying error.
     @ObservationIgnored var onConnectionLost: (@MainActor (String) -> Void)?
 
-    private let feed: any PriceFeed
+    let feed: any StockSymbolPriceTracker
     /// What the feed generates prices for.
     private var tracked: [StockSymbolPrice] = []
 
-    init(feed: any PriceFeed) {
+    init(feed: any StockSymbolPriceTracker) {
         self.feed = feed
     }
 
@@ -45,15 +45,19 @@ final class StockMarketModel {
             let ticker = symbolPrice.symbol.ticker
             return (ticker, quotes[ticker] ?? StockQuote(price: symbolPrice.price, updatedAt: symbolPrice.timestamp))
         })
+        await track()
+    }
+    
+    private func track() async {
         await feed.track(tracked)
     }
 
     /// Stops pricing one symbol, e.g. after the backend deleted it.
     func untrack(ticker: String) async {
         tracked.removeAll { $0.symbol.ticker == ticker }
-        quotes[ticker] = nil
+        quotes.removeValue(forKey: ticker)
         // The feed keeps its own prices for symbols it already tracks.
-        await feed.track(tracked)
+        await track()
     }
 
     /// Takes a price from the backend when it's newer than the live quote; an older one is ignored.
@@ -61,29 +65,6 @@ final class StockMarketModel {
         let ticker = symbolPrice.symbol.ticker
         guard let quote = quotes[ticker], symbolPrice.timestamp > quote.updatedAt else { return }
         quotes[ticker] = quote.updated(to: symbolPrice.price, at: symbolPrice.timestamp)
-    }
-
-    func toggleFeed() async {
-        if isFeedRunning {
-            await feed.stop()
-        } else {
-            await feed.start()
-        }
-    }
-
-    /// Reconnects the running feed right away, skipping any backoff wait.
-    func reconnect() async {
-        await feed.reconnect()
-    }
-
-    /// The app moved to the background; sockets don't survive suspension, so drop it cleanly.
-    func appDidEnterBackground() async {
-        await feed.suspend()
-    }
-
-    /// The app is active again; reconnects if the feed was running before going to the background.
-    func appDidBecomeActive() async {
-        await feed.resume()
     }
 
     /// Applies feed events until the feed's stream ends. Run once for the model's lifetime.

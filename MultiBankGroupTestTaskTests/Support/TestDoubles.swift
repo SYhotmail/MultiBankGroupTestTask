@@ -172,6 +172,16 @@ actor FakeStockSymbolsProvider: StockSymbolsProvider {
     }
 }
 
+/// Polls `condition` until it holds or `timeout` passes; for work the code under test starts in its own task.
+func eventually(timeout: Duration = .seconds(2), _ condition: () async -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if await condition() { return true }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return await condition()
+}
+
 extension Date {
     /// Fixed moment for deterministic timestamps; whole seconds, so it survives an ISO 8601 round trip.
     static let fixture = Date(timeIntervalSince1970: 1_800_000_000)

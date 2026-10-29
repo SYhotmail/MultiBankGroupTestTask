@@ -19,8 +19,10 @@ struct MultiBankGroupTestTaskApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .background: Task { await navigationViewModel.appDidEnterBackground() }
-            case .active: Task { await navigationViewModel.appDidBecomeActive() }
+            case .background:
+                navigationViewModel.appDidEnterBackground()
+            case .active:
+                navigationViewModel.appDidBecomeActive()
             default: break
             }
         }
