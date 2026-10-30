@@ -28,6 +28,14 @@ struct SimulatedFailureTests {
         #expect(try await provider.fetchStockSymbols() == catalog)
     }
 
+    @Test func symbolsRefreshFailsOnlyOnTheSecondLoad() async throws {
+        let provider = provider(.symbolsRefreshFails)
+
+        #expect(try await provider.fetchStockSymbols() == catalog)
+        await #expect(throws: URLError.self) { try await provider.fetchStockSymbols() }
+        #expect(try await provider.fetchStockSymbols() == catalog)
+    }
+
     @Test func symbolsAreEmptyOnlyOnTheFirstLoad() async throws {
         let provider = provider(.symbolsEmpty)
 

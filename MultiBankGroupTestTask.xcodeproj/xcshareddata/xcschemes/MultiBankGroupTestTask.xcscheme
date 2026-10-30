@@ -60,6 +60,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-simulate symbolsLoadFails"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-simulate symbolsRefreshFails"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -68,7 +72,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-simulate symbolRefreshFails"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-simulate symbolDeleted"

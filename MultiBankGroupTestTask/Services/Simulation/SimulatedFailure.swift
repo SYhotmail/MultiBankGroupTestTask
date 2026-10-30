@@ -15,6 +15,8 @@ import Synchronization
 nonisolated enum SimulatedFailure: String, CaseIterable, Sendable {
     /// The first two loads fail, then loading works.
     case symbolsLoadFails
+    /// The first load works, the first pull-to-refresh fails, then refreshing works.
+    case symbolsRefreshFails
     /// The first load returns no symbols, then the catalog is back.
     case symbolsEmpty
     /// The first refresh on the detail screen fails, then refreshing works.
@@ -68,6 +70,8 @@ actor SimulatedFailureProvider: StockSymbolsProvider {
         switch failure {
         case .symbolsLoadFails where symbolsLoads <= 2:
             throw URLError(.notConnectedToInternet)
+        case .symbolsRefreshFails where symbolsLoads == 2:
+            throw URLError(.timedOut)
         case .symbolsEmpty where symbolsLoads == 1:
             return []
         default:

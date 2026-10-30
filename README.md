@@ -66,6 +66,7 @@ Debug builds can fake failures, to see alerts, retries and empty screens without
 | Argument | What happens |
 |---|---|
 | `-simulate symbolsLoadFails` | The first two loads fail, then loading works. Shows the alert and the empty screen. |
+| `-simulate symbolsRefreshFails` | The list loads, then the first pull-to-refresh fails and keeps the rows. |
 | `-simulate symbolsEmpty` | The first load returns no symbols; a retry brings them back. |
 | `-simulate symbolRefreshFails` | The first pull-to-refresh on a symbol fails, then it works. |
 | `-simulate symbolDeleted` | Pull-to-refresh on a symbol answers `404`, which removes it and closes the detail. |
