@@ -88,12 +88,19 @@ final class StockSymbolsNavigationViewModel {
     func observeNetwork() async {
         var wasOnline: Bool?
         for await isOnline in network.isOnlineUpdates {
+            guard !Task.isCancelled else {
+                return
+            }
             if wasOnline == false, isOnline {
                 logger.info("Network restored: reconnecting the price feed")
-                await feed.reconnect()
+                await reconnect()
             }
             wasOnline = isOnline
         }
+    }
+    
+    private func reconnect() async {
+        await feed.reconnect()
     }
 
     func appDidEnterBackground() {
@@ -124,7 +131,7 @@ final class StockSymbolsNavigationViewModel {
             guard let symbol = listViewModel.symbol(ticker: ticker) else { return }
             await detailViewModel(for: symbol).refresh()
         case .connectionLost:
-            await feed.reconnect()
+            await reconnect()
         }
     }
 

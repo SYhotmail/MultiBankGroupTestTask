@@ -49,10 +49,13 @@ final class EchoWebSocketConnection: WebSocketConnection {
         var connectError: (any Error)?
         var replyOverride: String?
         var isSilent = false
+        var hangsOnConnect = false
+        var hangsOnSend = false
         var sentMessages: [Data] = []
         var isClosed = false
         var pending: [Data] = []
         var silentReceive: CheckedContinuation<Data, any Error>?
+        var hung: CheckedContinuation<Void, any Error>?
     }
 
     private let state = Mutex(State())
@@ -74,14 +77,41 @@ final class EchoWebSocketConnection: WebSocketConnection {
         set { state.withLock { $0.isSilent = newValue } }
     }
 
+    /// When set, `connect()` never answers; it only fails once the socket is closed.
+    var hangsOnConnect: Bool {
+        get { state.withLock { $0.hangsOnConnect } }
+        set { state.withLock { $0.hangsOnConnect = newValue } }
+    }
+
+    /// When set, `send(_:)` never answers; it only fails once the socket is closed.
+    var hangsOnSend: Bool {
+        get { state.withLock { $0.hangsOnSend } }
+        set { state.withLock { $0.hangsOnSend = newValue } }
+    }
+
     var sentMessages: [Data] { state.withLock { $0.sentMessages } }
     var isClosed: Bool { state.withLock { $0.isClosed } }
 
     func connect() async throws {
         if let error = connectError { throw error }
+        if hangsOnConnect { try await hang() }
+    }
+
+    /// Waits like a socket that gets no answer: until `close()`, which makes the call fail.
+    private func hang() async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            state.withLock { state in
+                if state.isClosed {
+                    continuation.resume(throwing: TestError())
+                } else {
+                    state.hung = continuation
+                }
+            }
+        }
     }
 
     func send(_ message: Data) async throws {
+        if hangsOnSend { try await hang() }
         try state.withLock { state in
             guard !state.isClosed else { throw TestError() }
             state.sentMessages.append(message)
@@ -111,12 +141,16 @@ final class EchoWebSocketConnection: WebSocketConnection {
     }
 
     func close(reason: Data?) {
-        let pending = state.withLock { state in
+        let (pendingReceive, hung) = state.withLock { state in
             state.isClosed = true
-            defer { state.silentReceive = nil }
-            return state.silentReceive
+            defer {
+                state.silentReceive = nil
+                state.hung = nil
+            }
+            return (state.silentReceive, state.hung)
         }
-        pending?.resume(throwing: TestError())
+        pendingReceive?.resume(throwing: TestError())
+        hung?.resume(throwing: TestError())
     }
 }
 
