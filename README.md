@@ -17,7 +17,7 @@ and reviewed and refactored the result.
   (`404`) closes and leaves the list.
 - **Live everywhere:** both screens share the same prices. iPad shows them side by side.
 - **Resilient:** reconnects with exponential backoff (1–30 s) and as soon as the network returns, times out
-  a silent server after 10 s, pauses in the background, and shows an alert with Retry for failed loads and lost connections.
+  a silent server after 2 minutes, pauses in the background, and shows an alert with Retry for failed loads and lost connections.
 - **Localized:** English, German and Arabic, including right-to-left layout.
 
 ## Getting started

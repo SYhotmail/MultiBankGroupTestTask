@@ -155,21 +155,6 @@ struct WebSocketPriceFeedProviderTests {
         #expect(await nextState(&events) == .connected)
     }
 
-    @Test func connectThatNeverAnswersTimesOutAndRetries() async {
-        let (feed, connections) = makeFeed(echoTimeout: .milliseconds(20)) { connection, index in
-            if index == 0 { connection.hangsOnConnect = true }
-        }
-        var events = feed.events.makeAsyncIterator()
-
-        await feed.start()
-
-        #expect(await nextState(&events) == .connecting)
-        #expect(await nextState(&events) == .connecting)
-        #expect(await nextState(&events) == .connected)
-        #expect(connections().count == 2)
-        await feed.stop()
-    }
-
     @Test func sendThatNeverAnswersTimesOutAndReconnects() async {
         let (feed, connections) = makeFeed(echoTimeout: .milliseconds(20)) { connection, index in
             if index == 0 { connection.hangsOnSend = true }

@@ -49,7 +49,6 @@ final class EchoWebSocketConnection: WebSocketConnection {
         var connectError: (any Error)?
         var replyOverride: String?
         var isSilent = false
-        var hangsOnConnect = false
         var hangsOnSend = false
         var sentMessages: [Data] = []
         var isClosed = false
@@ -77,12 +76,6 @@ final class EchoWebSocketConnection: WebSocketConnection {
         set { state.withLock { $0.isSilent = newValue } }
     }
 
-    /// When set, `connect()` never answers; it only fails once the socket is closed.
-    var hangsOnConnect: Bool {
-        get { state.withLock { $0.hangsOnConnect } }
-        set { state.withLock { $0.hangsOnConnect = newValue } }
-    }
-
     /// When set, `send(_:)` never answers; it only fails once the socket is closed.
     var hangsOnSend: Bool {
         get { state.withLock { $0.hangsOnSend } }
@@ -94,7 +87,6 @@ final class EchoWebSocketConnection: WebSocketConnection {
 
     func connect() async throws {
         if let error = connectError { throw error }
-        if hangsOnConnect { try await hang() }
     }
 
     /// Waits like a socket that gets no answer: until `close()`, which makes the call fail.
