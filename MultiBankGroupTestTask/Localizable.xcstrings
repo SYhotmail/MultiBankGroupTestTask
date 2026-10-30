@@ -367,6 +367,22 @@
       },
       "comment" : "Description of TSLA on the symbol detail screen."
     },
+    "No Symbols" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا توجد رموز"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Symbole"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "ar" : {
@@ -615,6 +631,22 @@
         }
       },
       "comment" : "Description of IBM on the symbol detail screen."
+    },
+    "Pull down or tap Retry to try again." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسحب للأسفل أو اضغط على «إعادة المحاولة» للمحاولة مرة أخرى."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Aktualisieren nach unten ziehen oder auf „Erneut versuchen“ tippen."
+          }
+        }
+      }
     },
     "Retry" : {
       "localizations" : {

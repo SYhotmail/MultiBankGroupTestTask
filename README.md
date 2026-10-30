@@ -59,6 +59,22 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
 
+### Simulating failures
+
+Debug builds can fake failures, to see alerts, retries and empty screens without touching the network. In Xcode, open Product > Scheme > Edit Scheme > Run > Arguments and tick one `-simulate` entry:
+
+| Argument | What happens |
+|---|---|
+| `-simulate symbolsLoadFails` | The first two loads fail, then loading works. Shows the alert and the empty screen. |
+| `-simulate symbolsEmpty` | The first load returns no symbols; a retry brings them back. |
+| `-simulate symbolRefreshFails` | The first pull-to-refresh on a symbol fails, then it works. |
+| `-simulate symbolDeleted` | Pull-to-refresh on a symbol answers `404`, which removes it and closes the detail. |
+| `-simulate connectionFails` | After Start, three connection attempts fail, then the feed connects. |
+| `-simulate connectionDrops` | After Start, the first two connections drop after three price updates. |
+| `-simulate serverSilent` | After Start, the first connection gets no echo, so the feed times out after 10 s and reconnects. |
+
+The scenarios wrap the real provider and socket at their protocols, and none of this code is in Release builds.
+
 ## Architecture
 
 The app follows **MVVM** (Model–View–ViewModel):
@@ -133,6 +149,7 @@ MultiBankGroupTestTask/
 │   ├── Network/
 │   │   ├── WebSocketConnection.swift
 │   │   └── Symbols/                     # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
+│   ├── Simulation/                      # Debug-only failure scenarios
 │   └── PriceFeed/                       # PriceFeedProvider, WebSocketPriceFeedProvider, StockSymbolsPriceListener, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
 ├── ViewModels/                          # StockSymbolBaseViewModel: shared base with provider, price listener, feed, Start/Stop, refresh, error reporting
 ├── Screens/

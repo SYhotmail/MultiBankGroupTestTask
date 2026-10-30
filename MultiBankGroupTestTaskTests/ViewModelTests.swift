@@ -151,6 +151,19 @@ struct StockSymbolsListViewModelTests {
         #expect(!fixture.list.showsLoadingIndicator)
     }
 
+    @Test func emptyStateShowsOnlyAfterALoadLeavesNothing() async {
+        let fixture = Fixture()
+        await fixture.provider.setResult(.failure(TestError()))
+        #expect(!fixture.list.showsEmptyState)
+
+        await fixture.load()
+        #expect(fixture.list.showsEmptyState)
+
+        await fixture.provider.setResult(.success(fixture.catalog))
+        await fixture.load()
+        #expect(!fixture.list.showsEmptyState)
+    }
+
     @Test func refreshReconnectsAndReloads() async {
         let fixture = Fixture()
         await fixture.load()

@@ -31,13 +31,26 @@ struct MultiBankGroupTestTaskApp: App {
 }
 
 extension StockSymbolsNavigationViewModel {
+    private static let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
+
     /// Composition root: bundled symbols priced by the Postman echo WebSocket.
-    static var live: StockSymbolsNavigationViewModel { preview }
+    static var live: StockSymbolsNavigationViewModel {
+        #if DEBUG
+        if let failure = SimulatedFailure.current {
+            let url = priceFeedURL
+            let makeConnection = failure.connections { URLSessionWebSocketConnection(url: url) }
+            return StockSymbolsNavigationViewModel(
+                provider: failure.wrapping(BundledStockSymbolsRepository()),
+                feed: WebSocketPriceFeedProvider(makeConnection: makeConnection),
+                logger: .viewModels
+            )
+        }
+        #endif
+        return preview
+    }
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
     static var preview: StockSymbolsNavigationViewModel {
-        let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
-
-        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeedProvider(url: priceFeedURL), logger: .viewModels)
+        StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeedProvider(url: priceFeedURL), logger: .viewModels)
     }
 }

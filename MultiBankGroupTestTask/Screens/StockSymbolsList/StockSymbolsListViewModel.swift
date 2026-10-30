@@ -33,6 +33,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         didSet { updateRows() }
     }
     private(set) var isLoading = false
+    private var hasFinishedLoading = false
 
     /// Rows ordered by `sortOrder`, highest first; ties fall back to ticker order.
     ///
@@ -58,6 +59,9 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
 
     /// Spinner only while the very first load is in flight; a refresh keeps the current rows.
     var showsLoadingIndicator: Bool { symbols.isEmpty && isLoading }
+
+    /// After a load that left nothing to show: it failed, or the backend has no symbols.
+    var showsEmptyState: Bool { symbols.isEmpty && !isLoading && hasFinishedLoading }
 
     /// The listed symbol with this ticker, or `nil` if it isn't (or is no longer) listed.
     func symbol(ticker: String) -> StockSymbol? {
@@ -87,7 +91,10 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     /// Fetches the list (`GET /symbols`). Symbols that remain keep their live quotes; a failure is reported.
     func load() async {
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            hasFinishedLoading = true
+        }
         do {
             let unique = try await fetchUniqueStockSymbols()
             await priceListener.track(unique)
