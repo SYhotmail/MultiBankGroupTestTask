@@ -8,14 +8,14 @@
 import Foundation
 import OSLog
 
-/// What every screen's view model shares: the backend, the live market model, the feed controls shown
+/// What every screen's view model shares: the backend, the live price listener, the feed controls shown
 /// in each screen's toolbar, and where failures are reported.
 ///
 /// Not `@Observable` itself: it holds dependencies and a callback, nothing a view renders; reads of
 /// `connectionState` are tracked through `StockSymbolsPriceListener`. Subclasses add `@Observable` for their own state.
 class StockSymbolBaseViewModel {
     let provider: any StockSymbolsProvider
-    let market: StockSymbolsPriceListener
+    let priceListener: StockSymbolsPriceListener
     let feed: any PriceFeed
     let logger: Logger
     /// Where a failed load or refresh is reported.
@@ -23,21 +23,21 @@ class StockSymbolBaseViewModel {
 
     init(
         provider: any StockSymbolsProvider,
-        market: StockSymbolsPriceListener,
+        priceListener: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
     ) {
         self.provider = provider
-        self.market = market
+        self.priceListener = priceListener
         self.feed = feed
         self.logger = logger
         self.onIssue = onIssue
     }
 
-    var connectionState: ConnectionState { market.connectionState }
+    var connectionState: ConnectionState { priceListener.connectionState }
 
-    var isFeedRunning: Bool { market.isFeedRunning }
+    var isFeedRunning: Bool { priceListener.isFeedRunning }
 
     /// Start/Stop button.
     func toggleFeed() async {

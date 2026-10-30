@@ -24,7 +24,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
     init(
         symbol: StockSymbol,
         provider: any StockSymbolsProvider,
-        market: StockSymbolsPriceListener,
+        priceListener: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
         listedSymbol: @escaping @MainActor (String) -> StockSymbol?,
@@ -36,7 +36,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
         self.listedSymbol = listedSymbol
         self.onSymbolUpdated = onSymbolUpdated
         self.onSymbolDeleted = onSymbolDeleted
-        super.init(provider: provider, market: market, feed: feed, logger: logger, onIssue: onIssue)
+        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onIssue: onIssue)
     }
     
     private var ticker: String { initialSymbol.ticker }
@@ -46,7 +46,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
     var symbol: StockSymbol { listSymbol() ?? initialSymbol }
     
     /// `nil` once the symbol is no longer priced, e.g. a refresh removed it while this screen was open.
-    var quote: StockQuote? { market.quote(for: ticker) }
+    var quote: StockQuote? { priceListener.quote(for: ticker) }
     
     private func fetchStockSymbol(id: String) async throws -> StockSymbolPrice {
         try await provider.fetchStockSymbol(id: id)
@@ -64,7 +64,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
                 return
             }
             onSymbolUpdated(fetched.symbol)
-            market.applyIfNewer(fetched)
+            priceListener.applyIfNewer(fetched)
             logger.info("Refreshed \(self.ticker)")
         } catch StockSymbolsProviderError.notFound {
             // The backend deleted the symbol: drop it, as a list reload without it would.

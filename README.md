@@ -87,10 +87,10 @@ Each screen's logic lives in its view model; the navigation view model coordinat
 
 | ViewModel | Owns | Actions |
 |---|---|---|
-| `StockSymbolBaseViewModel` (shared base of the list and detail view models) | The `provider`, the `market`, the `feed`, the `logger` and the `onIssue` callback; `connectionState`, `isFeedRunning` | `toggleFeed()` (Start/Stop), `reconnectFeed()`, `refresh()` (reconnects; subclasses then reload their own data) |
+| `StockSymbolBaseViewModel` (shared base of the list and detail view models) | The `provider`, the `priceListener`, the `feed`, the `logger` and the `onIssue` callback; `connectionState`, `isFeedRunning` | `toggleFeed()` (Start/Stop), `reconnectFeed()`, `refresh()` (reconnects; subclasses then reload their own data) |
 | `StockSymbolsNavigationViewModel` | Creates the `StockSymbolsPriceListener` and the list view model from a provider and a feed, builds detail view models; `selectedTicker` / `selectedSymbol` for the detail column (reads as `nil` once the symbol is deleted); the one `alert` (+ Debug description) that any of them reports — an unseen alert is never replaced | `dismissAlert()`, `retry(_:)` — reload the list, refresh the symbol or reconnect; `observeFeed()`, and the background/foreground hooks that suspend and resume the feed |
-| `StockSymbolsListViewModel` | Which symbols exist (`GET /symbols`): `symbols`, `isLoading`, de-duplication, telling the market what to price; `sortOrder` and sorted `rows` with live quotes, rebuilt only when the symbols, quotes or sort order change | `loadIfNeeded()`, `load()`, `refresh()`; `replace(_:)` / `remove(ticker:)` for the detail screen; feed controls from `StockSymbolBaseViewModel` |
-| `StockSymbolDetailViewModel` | One symbol (`GET /symbols/{id}`): its details from the list, its live `quote` from the market | `refresh()` — newer details into the list, a newer price into the market, a `404` removes the symbol, other failures are reported; feed controls from `StockSymbolBaseViewModel` |
+| `StockSymbolsListViewModel` | Which symbols exist (`GET /symbols`): `symbols`, `isLoading`, de-duplication, telling the price listener what to price; `sortOrder` and sorted `rows` with live quotes, rebuilt only when the symbols, quotes or sort order change | `loadIfNeeded()`, `load()`, `refresh()`; `replace(_:)` / `remove(ticker:)` for the detail screen; feed controls from `StockSymbolBaseViewModel` |
+| `StockSymbolDetailViewModel` | One symbol (`GET /symbols/{id}`): its details from the list, its live `quote` from the price listener | `refresh()` — newer details into the list, a newer price into the price listener, a `404` removes the symbol, other failures are reported; feed controls from `StockSymbolBaseViewModel` |
 
 Child view models report problems through `StockSymbolsIssueHandler` callbacks that capture the navigation view model weakly, so the ownership graph has no cycles (`MemoryLeakTests` guards this).
 
@@ -105,7 +105,7 @@ Views only render what their view model exposes and forward user actions to it. 
 ### Key decisions
 
 - **Shared live connection, per-screen logic.** Only the WebSocket connection and its live quotes are shared, so only they live in `StockSymbolsPriceListener`. The list owns which symbols exist, the detail screen owns single-symbol refreshes, and the navigation view model coordinates them and owns the alert.
-- **One source of truth per fact.** Symbols live in the list view model, prices in the market model; other view models read them through computed properties, so nothing is copied and nothing goes stale.
+- **One source of truth per fact.** Symbols live in the list view model, prices in the price listener; other view models read them through computed properties, so nothing is copied and nothing goes stale.
 - **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would close an open sort menu).
 - **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `StockSymbolsProvider`), where tests need to substitute real network and data access.
 - **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. The app target's default actor isolation is `MainActor`, so views, view models and `StockSymbolsPriceListener` (which SwiftUI observes) need no annotation, and everything else opts out explicitly: plain data and stateless services are `nonisolated`. Services that own mutable state are actors (`WebSocketPriceFeed`), so the WebSocket session, price generation and JSON coding run on its executor, never the main thread. Stateless services are `Sendable` structs whose methods are `@concurrent` (`BundledStockSymbolsRepository`), so they too run off the main thread without an actor's isolation; one becomes an actor only when it gains state to protect. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockSymbolPrice`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
@@ -127,7 +127,7 @@ MultiBankGroupTestTask/
 │   │   └── Symbols/                     # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
 │   └── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
 ├── Screens/
-│   ├── StockSymbolBaseViewModel.swift   # Shared base: provider, market, feed, Start/Stop, refresh, issue reporting
+│   ├── StockSymbolBaseViewModel.swift   # Shared base: provider, price listener, feed, Start/Stop, refresh, issue reporting
 │   ├── Logger+ViewModels.swift          # OSLog logger the view models write to
 │   ├── StockSymbolsNavigation/          # Root view + view model: NavigationSplitView, selection, alerts
 │   ├── StockSymbolsList/                # List view + view model

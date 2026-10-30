@@ -31,14 +31,14 @@ private struct Fixture {
     ]
     let feed = FakePriceFeed()
     let provider: FakeStockSymbolsProvider
-    let market: StockSymbolsPriceListener
+    let priceListener: StockSymbolsPriceListener
     let list: StockSymbolsListViewModel
     let issues = IssueRecorder()
 
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
-        market = StockSymbolsPriceListener(feed: feed)
-        list = StockSymbolsListViewModel(provider: provider, market: market, feed: feed, logger: .empty)
+        priceListener = StockSymbolsPriceListener(feed: feed)
+        list = StockSymbolsListViewModel(provider: provider, priceListener: priceListener, feed: feed, logger: .empty)
         list.onIssue = issues.handler
     }
 
@@ -50,7 +50,7 @@ private struct Fixture {
         StockSymbolDetailViewModel(
             symbol: catalog[index].symbol,
             provider: provider,
-            market: market,
+            priceListener: priceListener,
             feed: feed,
             logger: .empty,
             listedSymbol: { [list] in list.symbol(ticker: $0) },
@@ -70,7 +70,7 @@ struct StockSymbolsListViewModelTests {
 
         #expect(fixture.list.symbols == fixture.catalog.map(\.symbol))
         #expect(await fixture.feed.trackedSymbols == fixture.catalog)
-        #expect(fixture.market.quote(for: "AAA") == StockQuote(price: 10, updatedAt: .referenceFixture))
+        #expect(fixture.priceListener.quote(for: "AAA") == StockQuote(price: 10, updatedAt: .referenceFixture))
         #expect(!fixture.list.isLoading)
     }
 
@@ -85,7 +85,7 @@ struct StockSymbolsListViewModelTests {
     @Test func rowsSortByPriceChangeWithTickerTieBreak() async {
         let fixture = Fixture()
         await fixture.load()
-        fixture.market.apply(.priceUpdates([
+        fixture.priceListener.apply(.priceUpdates([
             PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture),   // +1
             PriceUpdate(symbol: "BBB", price: 29, timestamp: .fixture),   // -1
         ]))
@@ -100,7 +100,7 @@ struct StockSymbolsListViewModelTests {
         let fixture = Fixture()
         await fixture.load()
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 12, timestamp: .fixture)]))
 
         #expect(fixture.list.rows.first { $0.id == "AAA" }?.quote == StockQuote(price: 12, change: 2, updatedAt: .fixture))
     }
@@ -111,17 +111,17 @@ struct StockSymbolsListViewModelTests {
         #expect(fixture.list.rows.map(\.id) == ["BBB", "CCC", "AAA"])
 
         fixture.list.sortOrder = .priceChange
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 11, timestamp: .fixture)]))
         #expect(fixture.list.rows.map(\.id) == ["AAA", "BBB", "CCC"])
 
         fixture.list.sortOrder = .price
         #expect(fixture.list.rows.map(\.id) == ["BBB", "CCC", "AAA"])
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 40, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 40, timestamp: .fixture)]))
         #expect(fixture.list.rows.map(\.id) == ["AAA", "BBB", "CCC"])
 
         // A newer price from the backend (a detail refresh) reorders the rows too.
-        fixture.market.applyIfNewer(.fixture("CCC", price: 50, at: .fixture.addingTimeInterval(1)))
+        fixture.priceListener.applyIfNewer(.fixture("CCC", price: 50, at: .fixture.addingTimeInterval(1)))
         #expect(fixture.list.rows.map(\.id) == ["CCC", "AAA", "BBB"])
 
         await fixture.list.remove(ticker: "BBB")
@@ -133,7 +133,7 @@ struct StockSymbolsListViewModelTests {
         await fixture.load()
 
         let first = fixture.list.rows
-        fixture.market.apply(.connectionChanged(.connected))
+        fixture.priceListener.apply(.connectionChanged(.connected))
         let second = fixture.list.rows
 
         // The same stored array: both copies share one buffer. A rebuild would allocate a new one.
@@ -165,15 +165,15 @@ struct StockSymbolsListViewModelTests {
     @Test func reloadKeepsLiveQuotesOfRemainingSymbolsAndAddsNewOnes() async {
         let fixture = Fixture()
         await fixture.load()
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "AAA", price: 15, timestamp: .fixture)]))
         await fixture.provider.setResult(.success([fixture.catalog[0], .fixture("DDD", price: 5)]))
 
         await fixture.load()
 
         #expect(fixture.list.symbols.map(\.ticker) == ["AAA", "DDD"])
-        #expect(fixture.market.quote(for: "AAA") == StockQuote(price: 15, change: 5, updatedAt: .fixture))
-        #expect(fixture.market.quote(for: "BBB") == nil)
-        #expect(fixture.market.quote(for: "DDD") == StockQuote(price: 5, updatedAt: .referenceFixture))
+        #expect(fixture.priceListener.quote(for: "AAA") == StockQuote(price: 15, change: 5, updatedAt: .fixture))
+        #expect(fixture.priceListener.quote(for: "BBB") == nil)
+        #expect(fixture.priceListener.quote(for: "DDD") == StockQuote(price: 5, updatedAt: .referenceFixture))
     }
 
     @Test func duplicateTickersKeepTheFirstOccurrence() async {
@@ -183,7 +183,7 @@ struct StockSymbolsListViewModelTests {
         await fixture.load()
 
         #expect(fixture.list.symbols.map(\.ticker) == ["AAA"])
-        #expect(fixture.market.quote(for: "AAA")?.price == 1)
+        #expect(fixture.priceListener.quote(for: "AAA")?.price == 1)
     }
 
     @Test func failedLoadReportsAnIssueAndKeepsTheList() async {
@@ -217,7 +217,7 @@ struct StockSymbolsListViewModelTests {
         await fixture.list.remove(ticker: "BBB")
 
         #expect(fixture.list.symbols.map(\.ticker) == ["AAA", "CCC"])
-        #expect(fixture.market.quote(for: "BBB") == nil)
+        #expect(fixture.priceListener.quote(for: "BBB") == nil)
         #expect(await fixture.feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
     }
 
@@ -226,7 +226,7 @@ struct StockSymbolsListViewModelTests {
     @Test(arguments: [ConnectionState.connecting, .connected])
     func toggleStopsARunningFeed(state: ConnectionState) async {
         let fixture = Fixture()
-        fixture.market.apply(.connectionChanged(state))
+        fixture.priceListener.apply(.connectionChanged(state))
 
         await fixture.list.toggleFeed()
 
@@ -246,7 +246,7 @@ struct StockSymbolsListViewModelTests {
         let fixture = Fixture()
 
         await fixture.list.toggleFeed()
-        fixture.market.apply(.connectionChanged(.connected))
+        fixture.priceListener.apply(.connectionChanged(.connected))
 
         #expect(await fixture.feed.startCount == 1)
         #expect(fixture.list.connectionState == .connected)
@@ -261,7 +261,7 @@ struct StockSymbolDetailViewModelTests {
         let detail = fixture.detail(1)
         #expect(detail.quote == StockQuote(price: 30, updatedAt: .referenceFixture))
 
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 27, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 27, timestamp: .fixture)]))
 
         #expect(detail.quote == StockQuote(price: 27, change: -3, updatedAt: .fixture))
     }
@@ -286,19 +286,19 @@ struct StockSymbolDetailViewModelTests {
 
         await fixture.detail(1).refresh()
 
-        #expect(fixture.market.quote(for: "BBB") == StockQuote(price: 33, change: 3, updatedAt: .fixture))
+        #expect(fixture.priceListener.quote(for: "BBB") == StockQuote(price: 33, change: 3, updatedAt: .fixture))
     }
 
     @Test func refreshKeepsANewerLiveQuote() async {
         let fixture = Fixture()
         await fixture.load()
-        fixture.market.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
+        fixture.priceListener.apply(.priceUpdates([PriceUpdate(symbol: "BBB", price: 31, timestamp: .fixture)]))
         // The backend's price is older than the live update.
         await fixture.provider.setSymbolResult(.success(.fixture("BBB", price: 99, at: .referenceFixture)))
 
         await fixture.detail(1).refresh()
 
-        #expect(fixture.market.quote(for: "BBB") == StockQuote(price: 31, change: 1, updatedAt: .fixture))
+        #expect(fixture.priceListener.quote(for: "BBB") == StockQuote(price: 31, change: 1, updatedAt: .fixture))
     }
 
     @Test func refreshIgnoresAResponseForAnotherSymbol() async {
@@ -309,7 +309,7 @@ struct StockSymbolDetailViewModelTests {
         await fixture.detail(1).refresh()
 
         #expect(fixture.list.symbols == fixture.catalog.map(\.symbol))
-        #expect(fixture.market.quote(for: "CCC") == StockQuote(price: 20, updatedAt: .referenceFixture))
+        #expect(fixture.priceListener.quote(for: "CCC") == StockQuote(price: 20, updatedAt: .referenceFixture))
     }
 
     @Test func notFoundDeletesTheSymbolWithoutAnIssue() async {
@@ -340,7 +340,7 @@ struct StockSymbolDetailViewModelTests {
 
     @Test func toggleStopsARunningFeed() async {
         let fixture = Fixture()
-        fixture.market.apply(.connectionChanged(.connected))
+        fixture.priceListener.apply(.connectionChanged(.connected))
 
         await fixture.detail(0).toggleFeed()
 

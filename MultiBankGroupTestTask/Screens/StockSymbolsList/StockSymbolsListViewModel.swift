@@ -46,14 +46,14 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     
     override init(
         provider: any StockSymbolsProvider,
-        market: StockSymbolsPriceListener,
+        priceListener: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
     ) {
-        super.init(provider: provider, market: market, feed: feed, logger: logger, onIssue: onIssue)
-        // Weak: the navigation view model owns both the market and this list.
-        market.onQuotesChanged = { [weak self] in self?.updateRows() }
+        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onIssue: onIssue)
+        // Weak: the navigation view model owns both the price listener and this list.
+        priceListener.onQuotesChanged = { [weak self] in self?.updateRows() }
     }
 
     /// Spinner only while the very first load is in flight; a refresh keeps the current rows.
@@ -90,7 +90,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         defer { isLoading = false }
         do {
             let unique = try await fetchUniqueStockSymbols()
-            await market.track(unique)
+            await priceListener.track(unique)
             symbols = unique.map(\.symbol)
             logger.info("Loaded \(unique.count) symbols")
         } catch is CancellationError {
@@ -104,7 +104,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     }
 
     private func updateRows() {
-        let quotes = market.quotes
+        let quotes = priceListener.quotes
         let rows = symbols
             .compactMap { symbol in quotes[symbol.ticker].map { Row(symbol: symbol, quote: $0) } }
             .sorted { lhs, rhs in
@@ -129,6 +129,6 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         guard symbols.contains(where: { $0.ticker == ticker }) else { return }
         symbols.removeAll { $0.ticker == ticker }
         logger.notice("Removed \(ticker, privacy: .public), deleted by the backend")
-        await market.untrack(ticker: ticker)
+        await priceListener.untrack(ticker: ticker)
     }
 }

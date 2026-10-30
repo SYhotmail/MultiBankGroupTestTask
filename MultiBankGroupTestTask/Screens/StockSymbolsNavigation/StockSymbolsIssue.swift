@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// A problem worth interrupting the user for. View models and the market model report these to the
+/// A problem worth interrupting the user for. View models and the price listener report these to the
 /// navigation view model, which shows one alert at a time.
 nonisolated enum StockSymbolsIssue: Equatable, Sendable {
     case symbolsUnavailable
