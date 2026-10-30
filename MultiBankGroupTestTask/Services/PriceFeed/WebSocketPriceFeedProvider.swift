@@ -117,8 +117,11 @@ actor WebSocketPriceFeedProvider: PriceFeedProvider {
             let connection = makeConnection()
             self.connection = connection
             do {
+                // Inside the `do`, so the socket closes before the backoff wait in the `catch`.
+                defer { connection.close() }
                 try await connection.connect()
-                try Task.checkCancellation()
+                guard !Task.isCancelled else { return }
+                
                 failures = 0
                 continuation.yield(.connectionChanged(.connected))
                 while !Task.isCancelled {
@@ -126,7 +129,6 @@ actor WebSocketPriceFeedProvider: PriceFeedProvider {
                     try await Task.sleep(for: updateInterval)
                 }
             } catch {
-                connection.close()
                 // A cancelled session was ended by stop/suspend, which already reported it.
                 guard !Task.isCancelled else { return }
                 failures += 1

@@ -19,7 +19,7 @@ struct PriceUpdateGenerator: Sendable {
     init(
         symbolPrices: [StockSymbolPrice],
         maxChangeRatio: Double = 0.02,
-        maxUpdatesPerBatch: Int = 5,
+        maxUpdatesPerBatch: Int = 10,
         rng: any RandomNumberGenerator & Sendable = SystemRandomNumberGenerator()
     ) {
         self.maxChangeRatio = maxChangeRatio
