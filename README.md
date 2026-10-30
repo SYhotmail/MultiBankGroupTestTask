@@ -42,14 +42,21 @@ Built with SwiftUI, Swift Concurrency (Swift 6 language mode, complete data-race
 Open `MultiBankGroupTestTask.xcodeproj`, select the **MultiBankGroupTestTask** scheme and run.
 Tap **Start** (▶) to connect the feed.
 
-Run the unit tests from the command line:
+The scheme has two test plans, in `TestPlans/`:
+
+| Plan | Runs | Use it for |
+|---|---|---|
+| `Min` (default) | Unit tests | Every change and pull request: finishes in seconds |
+| `Max` | Unit and UI tests, in random order, with Thread Sanitizer and code coverage | Before a merge or a release |
+
+Run one from the command line:
 
 ```bash
 xcodebuild test \
   -project MultiBankGroupTestTask.xcodeproj \
   -scheme MultiBankGroupTestTask \
-  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
-  -only-testing:MultiBankGroupTestTaskTests
+  -testPlan Min \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
 
 ## Architecture
@@ -134,6 +141,7 @@ MultiBankGroupTestTask/
 │   ├── StockSymbolDetail/               # Detail view + view model
 │   └── Components/                      # FeedToolbar, ConnectionStatusView, PriceText, PriceChangeIndicator
 └── Localizable.xcstrings                # en (source), de, ar
+TestPlans/                               # Min and Max
 MultiBankGroupTestTaskTests/
 ├── Support/TestDoubles.swift            # Seeded RNG, in-memory echo socket, fake feed and provider
 └── *Tests.swift
@@ -146,7 +154,7 @@ Unit tests use **Swift Testing** and are designed to run unattended on CI:
 - **Deterministic** — random prices come from a seeded generator (SplitMix64); time-based behavior uses millisecond intervals injected through initializers.
 - **Offline** — the WebSocket is replaced by an in-memory echo connection that can fail to connect, drop, go silent or return malformed data.
 - **Bounded** — the feed suite has a time limit, so a regression that hangs fails instead of stalling the pipeline.
-- **Race-free** — the suite also passes under Thread Sanitizer (`xcodebuild test … -enableThreadSanitizer YES`); test doubles are actors or `Mutex`-protected, so they're safe under the same rules as the app.
+- **Race-free** — the suite also passes under Thread Sanitizer (the `Max` test plan); test doubles are actors or `Mutex`-protected, so they're safe under the same rules as the app.
 
 | Suite | Goal |
 |---|---|
