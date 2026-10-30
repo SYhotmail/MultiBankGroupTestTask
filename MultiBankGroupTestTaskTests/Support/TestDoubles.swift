@@ -10,20 +10,33 @@ import OSLog
 import Synchronization
 @testable import MultiBankGroupTestTask
 
-/// Deterministic RNG (SplitMix64) so random-driven code is reproducible on CI.
+/// Repeatable random numbers: the same seed always gives the same sequence, so random-driven code
+/// behaves identically on every CI run. This is the standard SplitMix64 algorithm: it advances a
+/// counter by a fixed step, then scrambles the counter into the number it returns.
 struct SeededRandomNumberGenerator: RandomNumberGenerator, Sendable {
-    private var state: UInt64
+    // The published SplitMix64 constants. Changing them changes every seeded sequence.
+    private static let step: UInt64 = 0x9E37_79B9_7F4A_7C15
+    private static let firstMultiplier: UInt64 = 0xBF58_476D_1CE4_E5B9
+    private static let secondMultiplier: UInt64 = 0x94D0_49BB_1331_11EB
+
+    private var counter: UInt64
 
     init(seed: UInt64) {
-        state = seed
+        counter = seed
     }
 
     mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-        return z ^ (z >> 31)
+        // `&+` and `&*` wrap on overflow, which is what the algorithm wants.
+        counter &+= Self.step
+        return Self.scramble(counter)
+    }
+
+    /// Mixes the bits, so consecutive counters give unrelated numbers.
+    private static func scramble(_ value: UInt64) -> UInt64 {
+        var mixed = value
+        mixed = (mixed ^ (mixed >> 30)) &* firstMultiplier
+        mixed = (mixed ^ (mixed >> 27)) &* secondMultiplier
+        return mixed ^ (mixed >> 31)
     }
 }
 
