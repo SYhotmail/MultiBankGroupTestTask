@@ -1,5 +1,5 @@
 //
-//  WebSocketPriceFeed.swift
+//  WebSocketPriceFeedProvider.swift
 //  MultiBankGroupTestTask
 //
 //  Created by Siarhei Yakushevich on 28/10/2026.
@@ -24,7 +24,7 @@ nonisolated struct ReconnectPolicy: Sendable {
 /// While started (and not suspended) it keeps a session alive: a failed connect, a dropped socket
 /// or an echo that doesn't arrive within `echoTimeout` all lead to a reconnect with backoff.
 /// Session state, price generation and JSON coding are isolated to this actor, off the main thread.
-actor WebSocketPriceFeed: PriceFeedProvider {
+actor WebSocketPriceFeedProvider: PriceFeedProvider {
     nonisolated let events: AsyncStream<PriceFeedEvent>
     private let continuation: AsyncStream<PriceFeedEvent>.Continuation
     private let makeConnection: @Sendable () -> any WebSocketConnection
