@@ -5,6 +5,10 @@ them to the WebSocket echo server `wss://ws.postman-echo.com/raw`, and displays 
 
 SwiftUI, Swift 6 concurrency, the Observation framework and MVVM. No third-party dependencies.
 
+Built with [Claude Code](https://claude.com/claude-code) as a pair programmer. Claude Code wrote much of the
+code, tests and documentation; I directed the work, made the architecture, concurrency and naming decisions,
+and reviewed and refactored the result.
+
 ## Features
 
 - **List:** ticker, name, price and a change indicator (▲ / ▼). Sort by price or price change. Connection
