@@ -42,7 +42,7 @@ private struct StockSymbolsList: View {
             }
         }
         .listStyle(.plain)
-        .animation(.default, value: rows.map(\.id))
+        .animation(.default, value: viewModel.rowsId)
         .refreshable { await viewModel.refresh() }
         .overlay {
             if viewModel.showsLoadingIndicator {

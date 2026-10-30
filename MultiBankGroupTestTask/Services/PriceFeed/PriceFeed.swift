@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum PriceFeedEvent: Equatable, Sendable {
+nonisolated enum PriceFeedEvent: Equatable, Sendable {
     case connectionChanged(ConnectionState)
     case priceUpdates([PriceUpdate])
     /// The live connection failed. Sent once per outage; the feed keeps retrying on its own.
@@ -40,7 +40,7 @@ protocol PriceFeed: Actor, StockSymbolPriceTracker {
 }
 
 /// Delay before reconnecting: exponential growth from `initialDelay`, capped at `maxDelay`.
-struct ReconnectPolicy: Sendable {
+nonisolated struct ReconnectPolicy: Sendable {
     var initialDelay: Duration = .seconds(1)
     var maxDelay: Duration = .seconds(30)
 

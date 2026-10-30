@@ -13,7 +13,6 @@ import Observation
 ///
 /// Main-actor isolated because SwiftUI observes it. The feed it drives is an actor, so feed work runs
 /// off the main thread and results come back here with `await`.
-@MainActor
 @Observable
 final class StockSymbolsPriceListener {
     private(set) var quotes: [String: StockQuote] = [:] {
@@ -74,6 +73,9 @@ final class StockSymbolsPriceListener {
     /// Applies feed events until the feed's stream ends. Run once for the model's lifetime.
     func observeFeed() async {
         for await event in feed.events {
+            guard !Task.isCancelled else {
+                return
+            }
             apply(event)
         }
     }

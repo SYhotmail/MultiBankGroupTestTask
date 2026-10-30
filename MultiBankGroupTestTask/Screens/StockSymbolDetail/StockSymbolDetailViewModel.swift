@@ -9,25 +9,33 @@ import Foundation
 import Observation
 import OSLog
 
-/// One symbol's detail screen: its details (kept in the list, which owns which symbols exist), its live
-/// quote from the shared `StockSymbolsPriceListener`, and refreshing it from the backend (`GET /symbols/{id}`).
-@MainActor
+/// One symbol's detail screen: its details (the list owns which symbols exist, and is reached only through
+/// the closures given at init), its live quote from the shared `StockSymbolsPriceListener`, and refreshing
+/// it from the backend (`GET /symbols/{id}`).
 @Observable
 final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
     private let initialSymbol: StockSymbol
-    private let list: StockSymbolsListViewModel
+    /// The listed symbol with a ticker, or `nil` once it's no longer listed. Read while a view renders,
+    /// so the view follows the list's changes.
+    private let listedSymbol: @MainActor (String) -> StockSymbol?
+    private let onSymbolUpdated: (StockSymbol) -> Void
+    private let onSymbolDeleted: (String) async -> Void
 
     init(
         symbol: StockSymbol,
-        list: StockSymbolsListViewModel,
         provider: any StockSymbolsProvider,
         market: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
+        listedSymbol: @escaping @MainActor (String) -> StockSymbol?,
+        onSymbolUpdated: @escaping (StockSymbol) -> Void,
+        onSymbolDeleted: @escaping (String) async -> Void,
         onIssue: StockSymbolsIssueHandler? = nil
     ) {
         initialSymbol = symbol
-        self.list = list
+        self.listedSymbol = listedSymbol
+        self.onSymbolUpdated = onSymbolUpdated
+        self.onSymbolDeleted = onSymbolDeleted
         super.init(provider: provider, market: market, feed: feed, logger: logger, onIssue: onIssue)
     }
     
@@ -40,33 +48,38 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
     /// `nil` once the symbol is no longer priced, e.g. a refresh removed it while this screen was open.
     var quote: StockQuote? { market.quote(for: ticker) }
     
+    private func fetchStockSymbol(id: String) async throws -> StockSymbolPrice {
+        try await provider.fetchStockSymbol(id: id)
+    }
+    
     /// Pull-to-refresh: reconnects the feed and re-fetches this symbol. Updates its details, and its quote
     /// when the backend's price is newer than the live one. A `404` deletes the symbol; other failures are reported.
     override func refresh() async {
         await super.refresh()
         do {
-            let fetched = try await provider.fetchStockSymbol(id: ticker)
+            let fetched = try await fetchStockSymbol(id: ticker)
             // Trust boundary: accept only the symbol we asked for, and only while it's still listed.
             guard fetched.symbol.ticker == ticker, listSymbol() != nil else {
-                logger.warning("Ignored refresh of \(self.ticker, privacy: .public): got \(fetched.symbol.ticker, privacy: .public) or it's no longer listed")
+                logger.warning("Ignored refresh of \(self.ticker): got \(fetched.symbol.ticker) or it's no longer listed")
                 return
             }
-            list.replace(fetched.symbol)
+            onSymbolUpdated(fetched.symbol)
             market.applyIfNewer(fetched)
-            logger.info("Refreshed \(self.ticker, privacy: .public)")
+            logger.info("Refreshed \(self.ticker)")
         } catch StockSymbolsProviderError.notFound {
             // The backend deleted the symbol: drop it, as a list reload without it would.
-            await list.remove(ticker: ticker)
+            await onSymbolDeleted(ticker)
         } catch is CancellationError {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
-            logger.debug("Refresh of \(self.ticker, privacy: .public) cancelled")
+            logger.debug("Refresh of \(self.ticker) cancelled")
         } catch {
-            logger.error("Couldn't refresh \(self.ticker, privacy: .public): \(String(reflecting: error))")
-            onIssue?(.symbolUnavailable(ticker: ticker), String(reflecting: error))
+            let errorText = String(reflecting: error)
+            logger.error("Couldn't refresh \(self.ticker, privacy: .public): \(errorText)")
+            onIssue?(.symbolUnavailable(ticker: ticker), errorText)
         }
     }
     
     func listSymbol() -> StockSymbol? {
-        list.symbol(ticker: ticker)
+        listedSymbol(ticker)
     }
 }

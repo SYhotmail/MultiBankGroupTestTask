@@ -12,7 +12,6 @@ import OSLog
 /// Root of the screen hierarchy and their coordinator. Creates the shared `StockSymbolsPriceListener` (the live
 /// connection) and the list view model from the services it's given, builds detail view models, owns the
 /// selection that drives the detail column, and shows the one alert that any of them reports.
-@MainActor
 @Observable
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
@@ -55,11 +54,13 @@ final class StockSymbolsNavigationViewModel {
 
     func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
         StockSymbolDetailViewModel(symbol: symbol,
-                                   list: listViewModel,
                                    provider: provider,
                                    market: market,
                                    feed: feed,
-                                   logger: logger) { [weak self] issue, reason in
+                                   logger: logger,
+                                   listedSymbol: { [listViewModel] in listViewModel.symbol(ticker: $0) },
+                                   onSymbolUpdated: { [listViewModel] in listViewModel.replace($0) },
+                                   onSymbolDeleted: { [listViewModel] in await listViewModel.remove(ticker: $0) }) { [weak self] issue, reason in
             self?.report(issue, debugDescription: reason)
         }
     }

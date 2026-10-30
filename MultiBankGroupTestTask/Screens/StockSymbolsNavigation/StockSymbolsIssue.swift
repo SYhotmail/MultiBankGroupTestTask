@@ -9,7 +9,7 @@ import Foundation
 
 /// A problem worth interrupting the user for. View models and the market model report these to the
 /// navigation view model, which shows one alert at a time.
-enum StockSymbolsIssue: Equatable {
+nonisolated enum StockSymbolsIssue: Equatable, Sendable {
     case symbolsUnavailable
     case symbolUnavailable(ticker: String)
     case connectionLost
