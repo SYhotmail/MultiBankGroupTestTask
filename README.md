@@ -69,8 +69,7 @@ TestPlans/             # Min and Max
 ## Tests
 
 Swift Testing, deterministic and offline: a seeded random generator, an in-memory echo socket, and fake
-feed and provider. They cover the wire format, reconnects, the price listener, every view model,
-localization and retain cycles.
+feed and provider. They cover the wire format, reconnects, the price listener and every view model.
 
 | Plan | Runs |
 |---|---|
