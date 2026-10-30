@@ -49,9 +49,9 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         priceListener: StockSymbolsPriceListener,
         feed: any PriceFeedProvider,
         logger: Logger,
-        onIssue: StockSymbolsIssueHandler? = nil
+        onError: StockSymbolsErrorHandler? = nil
     ) {
-        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onIssue: onIssue)
+        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onError: onError)
         // Weak: the navigation view model owns both the price listener and this list.
         priceListener.onQuotesChanged = { [weak self] in self?.updateRows() }
     }
@@ -99,7 +99,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         } catch {
             let errorReflection = String(reflecting: error)
             logger.error("Couldn't load symbols: \(errorReflection)")
-            onIssue?(.symbolsUnavailable, errorReflection)
+            onError?(.symbolsUnavailable, errorReflection)
         }
     }
 

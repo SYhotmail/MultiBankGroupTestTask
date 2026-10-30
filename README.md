@@ -94,12 +94,12 @@ Each screen's logic lives in its view model; the navigation view model coordinat
 
 | ViewModel | Owns | Actions |
 |---|---|---|
-| `StockSymbolBaseViewModel` (shared base of the list and detail view models) | The `provider`, the `priceListener`, the `feed`, the `logger` and the `onIssue` callback; `connectionState`, `isFeedRunning` | `toggleFeed()` (Start/Stop), `reconnectFeed()`, `refresh()` (reconnects; subclasses then reload their own data) |
+| `StockSymbolBaseViewModel` (shared base of the list and detail view models) | The `provider`, the `priceListener`, the `feed`, the `logger` and the `onError` callback; `connectionState`, `isFeedRunning` | `toggleFeed()` (Start/Stop), `reconnectFeed()`, `refresh()` (reconnects; subclasses then reload their own data) |
 | `StockSymbolsNavigationViewModel` | Creates the `StockSymbolsPriceListener` and the list view model from a provider and a feed, builds detail view models; `selectedTicker` / `selectedSymbol` for the detail column (reads as `nil` once the symbol is deleted); the one `alert` (+ Debug description) that any of them reports — an unseen alert is never replaced | `dismissAlert()`, `retry(_:)` — reload the list, refresh the symbol or reconnect; `observeFeed()`, and the background/foreground hooks that suspend and resume the feed |
 | `StockSymbolsListViewModel` | Which symbols exist (`GET /symbols`): `symbols`, `isLoading`, de-duplication, telling the price listener what to price; `sortOrder` and sorted `rows` with live quotes, rebuilt only when the symbols, quotes or sort order change | `loadIfNeeded()`, `load()`, `refresh()`; `replace(_:)` / `remove(ticker:)` for the detail screen; feed controls from `StockSymbolBaseViewModel` |
 | `StockSymbolDetailViewModel` | One symbol (`GET /symbols/{id}`): its details from the list, its live `quote` from the price listener | `refresh()` — newer details into the list, a newer price into the price listener, a `404` removes the symbol, other failures are reported; feed controls from `StockSymbolBaseViewModel` |
 
-Child view models report problems through `StockSymbolsIssueHandler` callbacks that capture the navigation view model weakly, so the ownership graph has no cycles (`MemoryLeakTests` guards this).
+Child view models report problems through `StockSymbolsErrorHandler` callbacks that capture the navigation view model weakly, so the ownership graph has no cycles (`MemoryLeakTests` guards this).
 
 ### Views
 
@@ -134,7 +134,7 @@ MultiBankGroupTestTask/
 │   │   ├── WebSocketConnection.swift
 │   │   └── Symbols/                     # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
 │   └── PriceFeed/                       # PriceFeedProvider, WebSocketPriceFeedProvider, StockSymbolsPriceListener, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
-├── ViewModels/                          # StockSymbolBaseViewModel: shared base with provider, price listener, feed, Start/Stop, refresh, issue reporting
+├── ViewModels/                          # StockSymbolBaseViewModel: shared base with provider, price listener, feed, Start/Stop, refresh, error reporting
 ├── Screens/
 │   ├── StockSymbolsNavigation/          # Root view + view model: NavigationSplitView, selection, alerts
 │   ├── StockSymbolsList/                # List view + view model
