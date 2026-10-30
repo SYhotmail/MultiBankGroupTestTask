@@ -99,7 +99,7 @@ final class EchoWebSocketConnection: WebSocketConnection {
 
     /// Waits like a socket that gets no answer: until `close()`, which makes the call fail.
     private func hang() async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             state.withLock { state in
                 if state.isClosed {
                     continuation.resume(throwing: TestError())

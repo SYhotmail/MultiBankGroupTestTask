@@ -22,7 +22,7 @@ nonisolated struct ReconnectPolicy: Sendable {
 /// Sends generated price updates to an echo WebSocket and publishes what comes back.
 ///
 /// While started (and not suspended) it keeps a session alive: a failed connect, a dropped socket
-/// or an echo that doesn't arrive within `echoTimeout` all lead to a reconnect with backoff.
+/// or a connect or echo that doesn't finish within `echoTimeout` all lead to a reconnect with backoff.
 /// Session state, price generation and JSON coding are isolated to this actor, off the main thread.
 actor WebSocketPriceFeedProvider: PriceFeedProvider {
     nonisolated let events: AsyncStream<PriceFeedEvent>
@@ -119,7 +119,7 @@ actor WebSocketPriceFeedProvider: PriceFeedProvider {
             do {
                 // Inside the `do`, so the socket closes before the backoff wait in the `catch`.
                 defer { connection.close() }
-                try await connection.connect()
+                try await connect(connection)
                 guard !Task.isCancelled else { return }
                 
                 failures = 0
@@ -141,17 +141,29 @@ actor WebSocketPriceFeedProvider: PriceFeedProvider {
         }
     }
 
-    private func exchangeUpdates(over connection: any WebSocketConnection) async throws {
-        let updates = generator.next(at: now())
-        guard !updates.isEmpty else { return }
-        try await connection.send(try codec.encode(updates))
+    private func connect(_ connection: any WebSocketConnection) async throws {
+        let watchdog = startWatchdog(for: connection)
+        defer { watchdog.cancel() }
+        try await connection.connect()
+    }
 
-        // A silent server never fails `receive()` on its own; closing the socket makes it throw.
-        let watchdog = Task { [echoTimeout] in
+    /// With no answer from the network, `connect()`, `send(_:)` and `receive()` can wait far too long for a
+    /// live feed (`URLSession` gives up on a connect after 60 s). Closing the socket after `echoTimeout`
+    /// makes them throw sooner, so the session can reconnect.
+    private func startWatchdog(for connection: any WebSocketConnection) -> Task<Void, any Error> {
+        Task { [echoTimeout] in
             try await Task.sleep(for: echoTimeout)
             connection.close()
         }
+    }
+
+    private func exchangeUpdates(over connection: any WebSocketConnection) async throws {
+        let updates = generator.next(at: now())
+        guard !updates.isEmpty else { return }
+
+        let watchdog = startWatchdog(for: connection)
         defer { watchdog.cancel() }
+        try await connection.send(try codec.encode(updates))
         let echo = try await connection.receive()
         try Task.checkCancellation()
 
