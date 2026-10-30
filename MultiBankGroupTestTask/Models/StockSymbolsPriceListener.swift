@@ -1,5 +1,5 @@
 //
-//  StockSymbolsMarketModel.swift
+//  StockSymbolsPriceListener.swift
 //  MultiBankGroupTestTask
 //
 //  Created by Siarhei Yakushevich on 29/10/2026.
@@ -15,7 +15,7 @@ import Observation
 /// off the main thread and results come back here with `await`.
 @MainActor
 @Observable
-final class StockSymbolsMarketModel {
+final class StockSymbolsPriceListener {
     private(set) var quotes: [String: StockQuote] = [:] {
         didSet { onQuotesChanged?() }
     }

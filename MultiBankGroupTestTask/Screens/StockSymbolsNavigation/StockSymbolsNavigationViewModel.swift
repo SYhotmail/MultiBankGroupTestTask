@@ -9,7 +9,7 @@ import Foundation
 import Observation
 import OSLog
 
-/// Root of the screen hierarchy and their coordinator. Creates the shared `StockSymbolsMarketModel` (the live
+/// Root of the screen hierarchy and their coordinator. Creates the shared `StockSymbolsPriceListener` (the live
 /// connection) and the list view model from the services it's given, builds detail view models, owns the
 /// selection that drives the detail column, and shows the one alert that any of them reports.
 @MainActor
@@ -22,14 +22,14 @@ final class StockSymbolsNavigationViewModel {
     private(set) var alertDebugDescription: String?
 
     private let provider: any StockSymbolsProvider
-    private let market: StockSymbolsMarketModel
+    private let market: StockSymbolsPriceListener
     private var storedSelection: String?
     let feed: any PriceFeed
     private let logger: Logger
 
     /// - Parameter logger: Shared with the screens' view models; pass `.empty` in tests.
     init(provider: any StockSymbolsProvider, feed: any PriceFeed, logger: Logger) {
-        let market = StockSymbolsMarketModel(feed: feed)
+        let market = StockSymbolsPriceListener(feed: feed)
         self.provider = provider
         self.market = market
         self.feed = feed

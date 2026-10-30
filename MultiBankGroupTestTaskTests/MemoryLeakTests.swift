@@ -46,6 +46,6 @@ struct MemoryLeakTests {
         #expect(weakNavigation == nil, "StockSymbolsNavigationViewModel leaked")
         #expect(weakList == nil, "StockSymbolsListViewModel leaked")
         #expect(weakDetail == nil, "StockSymbolDetailViewModel leaked")
-        #expect(weakFeed == nil, "StockSymbolsMarketModel or its feed leaked")
+        #expect(weakFeed == nil, "StockSymbolsPriceListener or its feed leaked")
     }
 }

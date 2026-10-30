@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import MultiBankGroupTestTask
 
-/// Shared setup: a real `StockSymbolsMarketModel` over a fake feed and provider, so view models are
+/// Shared setup: a real `StockSymbolsPriceListener` over a fake feed and provider, so view models are
 /// tested against the same model the app uses.
 /// Records the issues a view model reports.
 @MainActor
@@ -21,7 +21,7 @@ final class IssueRecorder {
     }
 }
 
-/// A list view model over a real `StockSymbolsMarketModel`, the fake provider and the fake feed.
+/// A list view model over a real `StockSymbolsPriceListener`, the fake provider and the fake feed.
 @MainActor
 private struct Fixture {
     let catalog: [StockSymbolPrice] = [
@@ -31,13 +31,13 @@ private struct Fixture {
     ]
     let feed = FakePriceFeed()
     let provider: FakeStockSymbolsProvider
-    let market: StockSymbolsMarketModel
+    let market: StockSymbolsPriceListener
     let list: StockSymbolsListViewModel
     let issues = IssueRecorder()
 
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
-        market = StockSymbolsMarketModel(feed: feed)
+        market = StockSymbolsPriceListener(feed: feed)
         list = StockSymbolsListViewModel(provider: provider, market: market, feed: feed, logger: .empty)
         list.onIssue = issues.handler
     }
@@ -338,7 +338,7 @@ struct StockSymbolDetailViewModelTests {
     }
 }
 
-/// The navigation view model builds its own `StockSymbolsMarketModel`, so these tests drive it only through
+/// The navigation view model builds its own `StockSymbolsPriceListener`, so these tests drive it only through
 /// what it's given: the fake provider and the fake feed's event stream.
 @MainActor
 private struct NavigationFixture {

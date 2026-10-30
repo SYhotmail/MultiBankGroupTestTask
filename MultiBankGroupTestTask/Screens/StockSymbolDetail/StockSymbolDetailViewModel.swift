@@ -10,7 +10,7 @@ import Observation
 import OSLog
 
 /// One symbol's detail screen: its details (kept in the list, which owns which symbols exist), its live
-/// quote from the shared `StockSymbolsMarketModel`, and refreshing it from the backend (`GET /symbols/{id}`).
+/// quote from the shared `StockSymbolsPriceListener`, and refreshing it from the backend (`GET /symbols/{id}`).
 @MainActor
 @Observable
 final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
@@ -21,7 +21,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
         symbol: StockSymbol,
         list: StockSymbolsListViewModel,
         provider: any StockSymbolsProvider,
-        market: StockSymbolsMarketModel,
+        market: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil

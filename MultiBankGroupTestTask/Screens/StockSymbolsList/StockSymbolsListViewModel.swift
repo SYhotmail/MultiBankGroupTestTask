@@ -10,7 +10,7 @@ import Observation
 import OSLog
 
 /// The symbols list: owns which symbols exist (loaded from the provider), sorting and the feed
-/// controls shown above the list. Live prices come from the shared `StockSymbolsMarketModel`.
+/// controls shown above the list. Live prices come from the shared `StockSymbolsPriceListener`.
 @MainActor
 @Observable
 final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
@@ -43,7 +43,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
 
     override init(
         provider: any StockSymbolsProvider,
-        market: StockSymbolsMarketModel,
+        market: StockSymbolsPriceListener,
         feed: any PriceFeed,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
