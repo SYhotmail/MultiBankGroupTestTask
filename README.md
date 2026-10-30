@@ -120,15 +120,15 @@ Views only render what their view model exposes and forward user actions to it. 
 ```
 MultiBankGroupTestTask/
 ├── MultiBankGroupTestTaskApp.swift      # Composition root
-├── Models/                              # StockSymbolsPriceListener, StockSymbol, StockSymbolPrice, StockQuote, PriceUpdate, ConnectionState
+├── Extensions/                          # Logger+ViewModels: the OSLog logger the view models write to
+├── Models/                              # StockSymbol, StockSymbolPrice, StockQuote, PriceUpdate, ConnectionState
 ├── Services/
 │   ├── Network/
 │   │   ├── WebSocketConnection.swift
 │   │   └── Symbols/                     # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
-│   └── PriceFeed/                       # PriceFeedProvider, WebSocketPriceFeedProvider, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
+│   └── PriceFeed/                       # PriceFeedProvider, WebSocketPriceFeedProvider, StockSymbolsPriceListener, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
+├── ViewModels/                          # StockSymbolBaseViewModel: shared base with provider, price listener, feed, Start/Stop, refresh, issue reporting
 ├── Screens/
-│   ├── StockSymbolBaseViewModel.swift   # Shared base: provider, price listener, feed, Start/Stop, refresh, issue reporting
-│   ├── Logger+ViewModels.swift          # OSLog logger the view models write to
 │   ├── StockSymbolsNavigation/          # Root view + view model: NavigationSplitView, selection, alerts
 │   ├── StockSymbolsList/                # List view + view model
 │   ├── StockSymbolDetail/               # Detail view + view model
