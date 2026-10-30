@@ -16,7 +16,7 @@ import OSLog
 class StockSymbolBaseViewModel {
     let provider: any StockSymbolsProvider
     let priceListener: StockSymbolsPriceListener
-    let feed: any PriceFeed
+    let feed: any PriceFeedProvider
     let logger: Logger
     /// Where a failed load or refresh is reported.
     var onIssue: StockSymbolsIssueHandler?
@@ -24,7 +24,7 @@ class StockSymbolBaseViewModel {
     init(
         provider: any StockSymbolsProvider,
         priceListener: StockSymbolsPriceListener,
-        feed: any PriceFeed,
+        feed: any PriceFeedProvider,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
     ) {
