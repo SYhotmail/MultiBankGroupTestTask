@@ -121,7 +121,7 @@ final class ConnectionLog: Sendable {
     }
 }
 
-actor FakePriceFeed: PriceFeed {
+actor FakePriceFeed: PriceFeedProvider {
     nonisolated let events: AsyncStream<PriceFeedEvent>
     nonisolated let continuation: AsyncStream<PriceFeedEvent>.Continuation
     private(set) var startCount = 0

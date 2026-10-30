@@ -62,7 +62,7 @@ The app follows **MVVM** (Model–View–ViewModel):
  StockSymbolsNavigationView ──────▶ StockSymbolsNavigationViewModel (coordinator)
                                       │ creates, owns selection + alert
  StockSymbolsListView ────────────▶ StockSymbolsListViewModel ───── symbols ─────▶ StockSymbolsProvider
-                                      │           └──────────── live quotes ──────▶ StockSymbolsPriceListener ──▶ PriceFeed ──▶ WebSocketConnection
+                                      │           └──────────── live quotes ──────▶ StockSymbolsPriceListener ──▶ PriceFeedProvider ──▶ WebSocketConnection
  StockSymbolDetailView ───────────▶ StockSymbolDetailViewModel ──── refresh ──────▶ StockSymbolsProvider
                                         (details via the list, quote via StockSymbolsPriceListener)
 ```
@@ -75,7 +75,7 @@ Below it sit the services:
 
 | Type | Responsibility |
 |---|---|
-| `WebSocketPriceFeed` (`PriceFeed`, actor) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
+| `WebSocketPriceFeed` (`PriceFeedProvider`, actor) | Session lifecycle: start/stop, suspend/resume, reconnect with backoff, echo timeout. Publishes a single `AsyncStream<PriceFeedEvent>`. |
 | `FeedMessageCodec` | The one place that fixes the message format: a JSON array of `PriceUpdate`s (`Codable`) as UTF-8 bytes (`Data`), ISO 8601 dates. The connection sends them as text frames (JSON is text, and the echo server closes the socket on binary frames) and accepts text or binary frames back. |
 | `PriceUpdateGenerator` | Seedable random walk (±2% per tick, rounded to cents) for a random subset of tracked symbols. |
 | `WebSocketConnection` | Thin protocol over `URLSessionWebSocketTask`; swapped for an in-memory echo in tests. |
@@ -107,7 +107,7 @@ Views only render what their view model exposes and forward user actions to it. 
 - **Shared live connection, per-screen logic.** Only the WebSocket connection and its live quotes are shared, so only they live in `StockSymbolsPriceListener`. The list owns which symbols exist, the detail screen owns single-symbol refreshes, and the navigation view model coordinates them and owns the alert.
 - **One source of truth per fact.** Symbols live in the list view model, prices in the price listener; other view models read them through computed properties, so nothing is copied and nothing goes stale.
 - **Render scope.** List rows live in a child view so per-tick updates don't rebuild the toolbar (which would close an open sort menu).
-- **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeed`, `StockSymbolsProvider`), where tests need to substitute real network and data access.
+- **Protocols only at the I/O seams** (`WebSocketConnection`, `PriceFeedProvider`, `StockSymbolsProvider`), where tests need to substitute real network and data access.
 - **Concurrency: UI on the main actor, everything else off it.** The project uses the Swift 6 language mode, so data-race safety is checked at compile time. The app target's default actor isolation is `MainActor`, so views, view models and `StockSymbolsPriceListener` (which SwiftUI observes) need no annotation, and everything else opts out explicitly: plain data and stateless services are `nonisolated`. Services that own mutable state are actors (`WebSocketPriceFeed`), so the WebSocket session, price generation and JSON coding run on its executor, never the main thread. Stateless services are `Sendable` structs whose methods are `@concurrent` (`BundledStockSymbolsRepository`), so they too run off the main thread without an actor's isolation; one becomes an actor only when it gains state to protect. Everything that crosses between them is `Sendable`: value types (`StockSymbol`, `StockSymbolPrice`, `StockQuote`, `PriceUpdate`, `PriceFeedEvent`, `PriceUpdateGenerator`, `ReconnectPolicy`) and the `WebSocketConnection` transport. The UI talks to services with `await`, and feed events reach the main actor through an `AsyncStream`.
 - **User intent vs. connection state.** The feed remembers whether the user wants it running separately from whether it's connected, so backgrounding, outages and retries never override an explicit Stop.
 - **Wire format.** Every WebSocket message is a plain JSON array of price updates, e.g. `[{"symbol":"AAPL","price":229.1,"timestamp":"2027-01-15T08:00:00Z"}]`, encoded and decoded with `Codable` by `FeedMessageCodec`. The feed carries only prices, so there is no type envelope; anything that isn't a valid price array fails to decode and is dropped. `JSONEncoder`/`JSONDecoder` aren't `Sendable`, so the codec lives inside the feed actor. The codec works in bytes (`Data`); the connection owns framing and sends them as text frames after checking they're valid UTF-8, while accepting text or binary frames from the server.
@@ -125,7 +125,7 @@ MultiBankGroupTestTask/
 │   ├── Network/
 │   │   ├── WebSocketConnection.swift
 │   │   └── Symbols/                     # StockSymbolsProvider, BundledStockSymbolsRepository, StockSymbolPrice catalog
-│   └── PriceFeed/                       # PriceFeed, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
+│   └── PriceFeed/                       # PriceFeedProvider, WebSocketPriceFeed, ReconnectPolicy, PriceUpdateGenerator, FeedMessageCodec
 ├── Screens/
 │   ├── StockSymbolBaseViewModel.swift   # Shared base: provider, price listener, feed, Start/Stop, refresh, issue reporting
 │   ├── Logger+ViewModels.swift          # OSLog logger the view models write to

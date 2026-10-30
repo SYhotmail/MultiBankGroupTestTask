@@ -47,7 +47,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     override init(
         provider: any StockSymbolsProvider,
         priceListener: StockSymbolsPriceListener,
-        feed: any PriceFeed,
+        feed: any PriceFeedProvider,
         logger: Logger,
         onIssue: StockSymbolsIssueHandler? = nil
     ) {

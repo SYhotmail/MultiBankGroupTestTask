@@ -23,11 +23,11 @@ final class StockSymbolsNavigationViewModel {
     private let provider: any StockSymbolsProvider
     private let priceListener: StockSymbolsPriceListener
     private var storedSelection: String?
-    let feed: any PriceFeed
+    let feed: any PriceFeedProvider
     private let logger: Logger
 
     /// - Parameter logger: Shared with the screens' view models; pass `.empty` in tests.
-    init(provider: any StockSymbolsProvider, feed: any PriceFeed, logger: Logger) {
+    init(provider: any StockSymbolsProvider, feed: any PriceFeedProvider, logger: Logger) {
         let priceListener = StockSymbolsPriceListener(feed: feed)
         self.provider = provider
         self.priceListener = priceListener

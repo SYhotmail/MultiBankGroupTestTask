@@ -25,7 +25,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
         symbol: StockSymbol,
         provider: any StockSymbolsProvider,
         priceListener: StockSymbolsPriceListener,
-        feed: any PriceFeed,
+        feed: any PriceFeedProvider,
         logger: Logger,
         listedSymbol: @escaping @MainActor (String) -> StockSymbol?,
         onSymbolUpdated: @escaping (StockSymbol) -> Void,
