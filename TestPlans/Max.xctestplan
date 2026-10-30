@@ -1,0 +1,36 @@
+{
+  "configurations": [
+    {
+      "id": "7C1F2A10-4E5B-4D3A-9B61-0A1D2E3F4A02",
+      "name": "Configuration 1",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "codeCoverage": true,
+    "targetForVariableExpansion": {
+      "containerPath": "container:MultiBankGroupTestTask.xcodeproj",
+      "identifier": "218AC0B830925B0B00E679FA",
+      "name": "MultiBankGroupTestTask"
+    },
+    "testExecutionOrdering": "random",
+    "threadSanitizerEnabled": true
+  },
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:MultiBankGroupTestTask.xcodeproj",
+        "identifier": "218AC0C530925B0C00E679FA",
+        "name": "MultiBankGroupTestTaskTests"
+      }
+    },
+    {
+      "target": {
+        "containerPath": "container:MultiBankGroupTestTask.xcodeproj",
+        "identifier": "218AC0CF30925B0C00E679FA",
+        "name": "MultiBankGroupTestTaskUITests"
+      }
+    }
+  ],
+  "version": 1
+}
