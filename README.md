@@ -66,7 +66,6 @@ MultiBankGroupTestTask/
 ├── Views/             # Shared components
 └── Extensions/
 MultiBankGroupTestTaskTests/
-MultiBankGroupTestTaskUITests/
 TestPlans/             # Min and Max
 ```
 
@@ -78,7 +77,7 @@ feed and provider. They cover the wire format, reconnects, the price listener an
 | Plan | Runs |
 |---|---|
 | `Min` (default) | Unit tests, in seconds |
-| `Max` | Unit and UI tests in random order, with Thread Sanitizer and code coverage |
+| `Max` | Unit tests in random order, with Thread Sanitizer and code coverage |
 
 ```bash
 xcodebuild test -scheme MultiBankGroupTestTask -testPlan Min \
@@ -106,5 +105,5 @@ Arguments and tick one `-simulate` entry. None of this code is in Release builds
 - The symbols backend is simulated by a bundled provider.
 - Prices are random; the echo server returns exactly what the app sends.
 - After the network returns, reconnecting waits for the next backoff attempt or a pull-to-refresh.
-- The UI tests are still Xcode's launch templates.
+- There are no UI tests.
 - Translations weren't reviewed by native speakers.

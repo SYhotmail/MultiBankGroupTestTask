@@ -23,13 +23,6 @@
         "identifier": "218AC0C530925B0C00E679FA",
         "name": "MultiBankGroupTestTaskTests"
       }
-    },
-    {
-      "target": {
-        "containerPath": "container:MultiBankGroupTestTask.xcodeproj",
-        "identifier": "218AC0CF30925B0C00E679FA",
-        "name": "MultiBankGroupTestTaskUITests"
-      }
     }
   ],
   "version": 1
