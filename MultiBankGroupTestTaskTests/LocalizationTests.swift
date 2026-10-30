@@ -22,6 +22,7 @@ struct LocalizationTests {
         "Couldn't Load Symbols", "Check your connection and try again.",
         "Connection Problem", "Live prices are unavailable. The app will keep trying to reconnect.",
         "Retry", "OK", "Updated %@", "Couldn't Refresh %@", "Select a Symbol",
+        "No Symbols", "Pull down or tap Retry to try again.",
     ]
 
     /// Returned by `localizedString` only when the key has no entry; a translation may equal its key (e.g. "OK").

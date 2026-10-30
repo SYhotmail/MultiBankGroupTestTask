@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import OSLog
+import SwiftUI
 
 /// Root of the screen hierarchy and their coordinator. Creates the shared `StockSymbolsPriceListener` (the live
 /// connection) and the list view model from the services it's given, builds detail view models, owns the
@@ -48,6 +49,16 @@ final class StockSymbolsNavigationViewModel {
     var selectedTicker: String? {
         get { storedSelection.flatMap { listViewModel.symbol(ticker: $0)?.ticker } }
         set { storedSelection = newValue }
+    }
+
+    /// `true` while an alert is showing; setting it to `false` (the alert was dismissed) clears the alert.
+    var alertBinding: Binding<Bool> {
+        Binding<Bool> {
+            self.alert != nil
+        } set: { newValue in
+            guard !newValue else { return }
+            self.dismissAlert()
+        }
     }
 
     var selectedSymbol: StockSymbol? { selectedTicker.flatMap { listViewModel.symbol(ticker: $0) } }

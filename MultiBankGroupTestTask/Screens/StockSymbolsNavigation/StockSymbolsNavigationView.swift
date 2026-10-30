@@ -27,9 +27,8 @@ struct StockSymbolsNavigationView: View {
         // Attached at the root so alerts show on whichever screen is visible.
         .alert(
             Text(verbatim: viewModel.alert?.errorDescription ?? ""),
-            isPresented: Binding(get: { viewModel.alert != nil }, set: { if !$0 { viewModel.dismissAlert() } }),
-            presenting: viewModel.alert
-        ) { alert in
+            isPresented: viewModel.alertBinding,
+            presenting: viewModel.alert) { alert in
             Button("Retry") {
                 Task { await viewModel.retry(alert) }
             }

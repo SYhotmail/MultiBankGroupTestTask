@@ -42,7 +42,7 @@ actor WebSocketPriceFeedProvider: PriceFeedProvider {
 
     init(
         generator: PriceUpdateGenerator = .init(symbolPrices: []),
-        updateInterval: Duration = .seconds(2),
+        updateInterval: Duration = .milliseconds(500),
         echoTimeout: Duration = .seconds(10),
         reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
         now: @escaping @Sendable () -> Date = { .now },

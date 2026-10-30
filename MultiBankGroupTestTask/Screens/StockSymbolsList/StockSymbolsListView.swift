@@ -38,8 +38,9 @@ private struct StockSymbolsList: View {
         let rows = viewModel.rows
         List(rows, selection: $selection) { row in
             NavigationLink(value: row.id) {
-                StockSymbolRow(symbol: row.symbol, quote: row.quote)
+                StockSymbolRowView(symbol: row.symbol, quote: row.quote)
             }
+            .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .animation(.default, value: viewModel.rowsId)
@@ -47,34 +48,19 @@ private struct StockSymbolsList: View {
         .overlay {
             if viewModel.showsLoadingIndicator {
                 ProgressView()
+            } else if viewModel.showsEmptyState {
+                ContentUnavailableView {
+                    Label("No Symbols", systemImage: "chart.line.downtrend.xyaxis")
+                } description: {
+                    Text("Pull down or tap Retry to try again.")
+                } actions: {
+                    Button("Retry") {
+                        Task { await viewModel.load() }
+                    }
+                }
             }
         }
         .task { await viewModel.loadIfNeeded() }
-    }
-}
-
-struct StockSymbolRow: View {
-    let symbol: StockSymbol
-    let quote: StockQuote
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(symbol.ticker)
-                    .font(.headline)
-                Text(symbol.name)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            VStack(alignment: .trailing) {
-                PriceText(price: quote.price)
-                    .font(.headline)
-                PriceChangeIndicator(quote: quote)
-                    .font(.subheadline)
-            }
-        }
     }
 }
 
