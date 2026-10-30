@@ -112,6 +112,21 @@ struct WebSocketPriceFeedProviderTests {
         #expect(connections().count == 3)
     }
 
+    @Test func failedConnectionClosesBeforeTheBackoffWait() async {
+        let (feed, connections) = makeFeed(reconnectDelay: .seconds(60)) { connection, _ in
+            connection.connectError = TestError()
+        }
+        var events = feed.events.makeAsyncIterator()
+
+        await feed.start()
+        #expect(await nextState(&events) == .connecting)
+        #expect(await nextState(&events) == .connecting)
+
+        // The feed is now in its 60-second wait, which must not keep the failed socket open.
+        #expect(await eventually { connections().first?.isClosed == true })
+        await feed.stop()
+    }
+
     @Test func droppedConnectionReconnects() async {
         let (feed, connections) = makeFeed()
         var events = feed.events.makeAsyncIterator()
