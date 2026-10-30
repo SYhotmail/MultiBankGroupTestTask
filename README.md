@@ -16,8 +16,8 @@ and reviewed and refactored the result.
 - **Details:** live price, indicator and description. Pull to refresh; a symbol the backend deleted
   (`404`) closes and leaves the list.
 - **Live everywhere:** both screens share the same prices. iPad shows them side by side.
-- **Resilient:** reconnects with exponential backoff (1–30 s), times out a silent server after 10 s, pauses
-  in the background, and shows an alert with Retry for failed loads and lost connections.
+- **Resilient:** reconnects with exponential backoff (1–30 s) and as soon as the network returns, times out
+  a silent server after 10 s, pauses in the background, and shows an alert with Retry for failed loads and lost connections.
 - **Localized:** English, German and Arabic, including right-to-left layout.
 
 ## Getting started
@@ -104,6 +104,5 @@ Arguments and tick one `-simulate` entry. None of this code is in Release builds
 
 - The symbols backend is simulated by a bundled provider.
 - Prices are random; the echo server returns exactly what the app sends.
-- After the network returns, reconnecting waits for the next backoff attempt or a pull-to-refresh.
 - There are no UI tests.
 - Translations weren't reviewed by native speakers.

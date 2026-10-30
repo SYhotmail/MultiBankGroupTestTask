@@ -17,6 +17,7 @@ struct MultiBankGroupTestTaskApp: App {
         WindowGroup {
             StockSymbolsNavigationView(viewModel: navigationViewModel)
                 .task { await navigationViewModel.observeFeed() }
+                .task { await navigationViewModel.observeNetwork() }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -42,6 +43,7 @@ extension StockSymbolsNavigationViewModel {
             return StockSymbolsNavigationViewModel(
                 provider: failure.wrapping(BundledStockSymbolsRepository()),
                 feed: WebSocketPriceFeedProvider(makeConnection: makeConnection),
+                network: NetworkMonitorService(),
                 logger: .viewModels
             )
         }
@@ -51,6 +53,6 @@ extension StockSymbolsNavigationViewModel {
 
     /// Previews use the live wiring; the feed stays idle until Start is tapped.
     static var preview: StockSymbolsNavigationViewModel {
-        StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeedProvider(url: priceFeedURL), logger: .viewModels)
+        StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeedProvider(url: priceFeedURL), network: NetworkMonitorService(), logger: .viewModels)
     }
 }
