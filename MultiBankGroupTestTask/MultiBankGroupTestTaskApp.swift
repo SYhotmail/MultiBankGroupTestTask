@@ -38,6 +38,6 @@ extension StockSymbolsNavigationViewModel {
     static var preview: StockSymbolsNavigationViewModel {
         let priceFeedURL = URL(string: "wss://ws.postman-echo.com/raw")!
 
-        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeed(url: priceFeedURL), logger: .viewModels)
+        return StockSymbolsNavigationViewModel(provider: BundledStockSymbolsRepository(), feed: WebSocketPriceFeedProvider(url: priceFeedURL), logger: .viewModels)
     }
 }

@@ -1,5 +1,5 @@
 //
-//  WebSocketPriceFeedTests.swift
+//  WebSocketPriceFeedProviderTests.swift
 //  MultiBankGroupTestTaskTests
 //
 //  Created by Siarhei Yakushevich on 28/10/2026.
@@ -11,16 +11,16 @@ import Testing
 
 /// Runs off the main actor: the feed is an actor and is driven purely through `await`.
 @Suite(.timeLimit(.minutes(1)))
-struct WebSocketPriceFeedTests {
+struct WebSocketPriceFeedProviderTests {
     /// - Parameter configure: Called for each new connection with its zero-based index.
     private func makeFeed(
         echoTimeout: Duration = .seconds(10),
         reconnectDelay: Duration = .milliseconds(5),
         configure: @escaping @Sendable (EchoWebSocketConnection, Int) -> Void = { _, _ in }
-    ) -> (WebSocketPriceFeed, () -> [EchoWebSocketConnection]) {
+    ) -> (WebSocketPriceFeedProvider, () -> [EchoWebSocketConnection]) {
         let log = ConnectionLog()
         let generator = PriceUpdateGenerator(symbolPrices: StockSymbolPrice.catalog, rng: SeededRandomNumberGenerator(seed: 1))
-        let feed = WebSocketPriceFeed(
+        let feed = WebSocketPriceFeedProvider(
             generator: generator,
             updateInterval: .milliseconds(5),
             echoTimeout: echoTimeout,
