@@ -13,7 +13,6 @@ import OSLog
 ///
 /// Not `@Observable` itself: it holds dependencies and a callback, nothing a view renders; reads of
 /// `connectionState` are tracked through `StockSymbolsPriceListener`. Subclasses add `@Observable` for their own state.
-@MainActor
 class StockSymbolBaseViewModel {
     let provider: any StockSymbolsProvider
     let market: StockSymbolsPriceListener

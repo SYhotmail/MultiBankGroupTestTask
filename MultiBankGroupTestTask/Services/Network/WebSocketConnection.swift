@@ -9,7 +9,7 @@ import Foundation
 
 /// Text-message WebSocket transport. Abstracted so the price feed can be tested without a network.
 /// `Sendable`: the feed's actor and its echo watchdog both use the same connection.
-protocol WebSocketConnection: Sendable {
+nonisolated protocol WebSocketConnection: Sendable {
     /// Opens the socket and returns once the server has answered.
     func connect() async throws
     /// Sends UTF-8 encoded text (e.g. JSON) as one WebSocket text frame.
@@ -23,7 +23,7 @@ protocol WebSocketConnection: Sendable {
     func close(reason: Data?)
 }
 
-extension WebSocketConnection {
+nonisolated extension WebSocketConnection {
     func close() {
         close(reason: nil)
     }
@@ -34,7 +34,7 @@ nonisolated enum WebSocketConnectionError: Error, Equatable {
     case invalidUTF8
 }
 
-final class URLSessionWebSocketConnection: WebSocketConnection {
+nonisolated final class URLSessionWebSocketConnection: WebSocketConnection {
     private let task: URLSessionWebSocketTask
 
     init(url: URL, session: URLSession = .shared) {

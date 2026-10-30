@@ -11,7 +11,6 @@ import OSLog
 
 /// The symbols list: owns which symbols exist (loaded from the provider), sorting and the feed
 /// controls shown above the list. Live prices come from the shared `StockSymbolsPriceListener`.
-@MainActor
 @Observable
 final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     enum SortOrder: CaseIterable, Hashable {
@@ -29,6 +28,7 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     var sortOrder: SortOrder = .price {
         didSet { updateRows() }
     }
+    
     private(set) var symbols: [StockSymbol] = [] {
         didSet { updateRows() }
     }
@@ -41,6 +41,9 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
     /// it, since a new price can reorder the rows.
     private(set) var rows: [Row] = []
 
+    @ObservationIgnored
+    private(set) var rowsId: [String] = []
+    
     override init(
         provider: any StockSymbolsProvider,
         market: StockSymbolsPriceListener,
@@ -71,16 +74,22 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
         await super.refresh()
         await load()
     }
+    
+    @concurrent
+    private func fetchUniqueStockSymbols() async throws -> [StockSymbolPrice] {
+        let fetched = try await provider.fetchStockSymbols()
+        // Remote data may repeat a ticker; keep the first so tickers stay unique identifiers.
+        var seen = Set<String>()
+        let unique = fetched.filter { seen.insert($0.symbol.ticker).inserted }
+        return unique
+    }
 
     /// Fetches the list (`GET /symbols`). Symbols that remain keep their live quotes; a failure is reported.
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            let fetched = try await provider.fetchStockSymbols()
-            // Remote data may repeat a ticker; keep the first so tickers stay unique identifiers.
-            var seen = Set<String>()
-            let unique = fetched.filter { seen.insert($0.symbol.ticker).inserted }
+            let unique = try await fetchUniqueStockSymbols()
             await market.track(unique)
             symbols = unique.map(\.symbol)
             logger.info("Loaded \(unique.count) symbols")
@@ -88,14 +97,15 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
             // The caller went away (e.g. pull-to-refresh was cancelled); nothing to report.
             logger.debug("Symbols load cancelled")
         } catch {
-            logger.error("Couldn't load symbols: \(String(reflecting: error))")
-            onIssue?(.symbolsUnavailable, String(reflecting: error))
+            let errorReflection = String(reflecting: error)
+            logger.error("Couldn't load symbols: \(errorReflection)")
+            onIssue?(.symbolsUnavailable, errorReflection)
         }
     }
 
     private func updateRows() {
         let quotes = market.quotes
-        rows = symbols
+        let rows = symbols
             .compactMap { symbol in quotes[symbol.ticker].map { Row(symbol: symbol, quote: $0) } }
             .sorted { lhs, rhs in
                 let (lhsValue, rhsValue) = switch sortOrder {
@@ -104,6 +114,8 @@ final class StockSymbolsListViewModel: StockSymbolBaseViewModel {
                 }
                 return lhsValue == rhsValue ? lhs.id < rhs.id : lhsValue > rhsValue
             }
+        self.rows = rows
+        self.rowsId = rows.map(\.id)
     }
 
     /// Takes newer details for a listed symbol (e.g. from a detail refresh).

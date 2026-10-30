@@ -47,7 +47,17 @@ private struct Fixture {
     }
 
     func detail(_ index: Int) -> StockSymbolDetailViewModel {
-        StockSymbolDetailViewModel(symbol: catalog[index].symbol, list: list, provider: provider, market: market, feed: feed, logger: .empty, onIssue: issues.handler)
+        StockSymbolDetailViewModel(
+            symbol: catalog[index].symbol,
+            provider: provider,
+            market: market,
+            feed: feed,
+            logger: .empty,
+            listedSymbol: { [list] in list.symbol(ticker: $0) },
+            onSymbolUpdated: { [list] in list.replace($0) },
+            onSymbolDeleted: { [list] in await list.remove(ticker: $0) },
+            onIssue: issues.handler
+        )
     }
 }
 
