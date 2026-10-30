@@ -371,12 +371,13 @@ private struct NavigationFixture {
         .fixture("CCC", price: 20),
     ]
     let feed = FakePriceFeed()
+    let network = FakeNetworkMonitor()
     let provider: FakeStockSymbolsProvider
     let viewModel: StockSymbolsNavigationViewModel
 
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
-        viewModel = StockSymbolsNavigationViewModel(provider: provider, feed: feed, logger: .empty)
+        viewModel = StockSymbolsNavigationViewModel(provider: provider, feed: feed, network: network, logger: .empty)
     }
 
     func load() async {
@@ -527,6 +528,25 @@ struct StockSymbolsNavigationViewModelTests {
 
         #expect(detail.quote?.price == 9)
         #expect(fixture.viewModel.listViewModel.rows.first { $0.id == "AAA" }?.quote.price == 9)
+    }
+
+    @Test(arguments: [
+        ([false, true], 1),         // the network came back
+        ([true, false, true], 1),
+        ([false, true, false, true], 2),
+        ([true, true], 0),          // it never went away; the first value is only the current state
+        ([true], 0),
+        ([false], 0),
+        ([false, false], 0),
+    ])
+    func networkReturningReconnectsTheFeed(updates: [Bool], reconnects: Int) async {
+        let fixture = NavigationFixture()
+        for isOnline in updates { fixture.network.continuation.yield(isOnline) }
+        fixture.network.continuation.finish()
+
+        await fixture.viewModel.observeNetwork()
+
+        #expect(await fixture.feed.reconnectCount == reconnects)
     }
 
     @Test func lifecycleHooksReachTheFeed() async {

@@ -156,6 +156,16 @@ actor FakePriceFeed: PriceFeedProvider {
     func track(_ symbolPrices: [StockSymbolPrice]) { trackedSymbols = symbolPrices }
 }
 
+/// Network state driven by the test: yield `true` or `false`, then `finish()` to end the observer.
+final class FakeNetworkMonitor: NetworkMonitorProvider {
+    let isOnlineUpdates: AsyncStream<Bool>
+    let continuation: AsyncStream<Bool>.Continuation
+
+    init() {
+        (isOnlineUpdates, continuation) = AsyncStream.makeStream()
+    }
+}
+
 actor FakeStockSymbolsProvider: StockSymbolsProvider {
     private var result: Result<[StockSymbolPrice], any Error>
     /// When set, answers `fetchStockSymbol(id:)`; otherwise it looks the id up in `result`.

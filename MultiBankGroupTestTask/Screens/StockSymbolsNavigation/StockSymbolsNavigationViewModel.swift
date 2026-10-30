@@ -26,14 +26,16 @@ final class StockSymbolsNavigationViewModel {
     private var storedSelection: String?
     let feed: any PriceFeedProvider
     private let logger: Logger
+    private let network: any NetworkMonitorProvider
 
     /// - Parameter logger: Shared with the screens' view models; pass `.empty` in tests.
-    init(provider: any StockSymbolsProvider, feed: any PriceFeedProvider, logger: Logger) {
+    init(provider: any StockSymbolsProvider, feed: any PriceFeedProvider, network: any NetworkMonitorProvider, logger: Logger) {
         let priceListener = StockSymbolsPriceListener(feed: feed)
         self.provider = provider
         self.priceListener = priceListener
         self.feed = feed
         self.logger = logger
+        self.network = network
         listViewModel = StockSymbolsListViewModel(provider: provider, priceListener: priceListener, feed: feed, logger: logger)
 
         // Weak: this view model owns the price listener and the list, so strong captures would be retain cycles.
@@ -79,6 +81,19 @@ final class StockSymbolsNavigationViewModel {
     /// Turns feed events into live quotes until the feed's stream ends. Run once for the app's lifetime.
     func observeFeed() async {
         await priceListener.observeFeed()
+    }
+
+    /// Reconnects as soon as the network returns, instead of waiting out the feed's backoff.
+    /// Run once for the app's lifetime.
+    func observeNetwork() async {
+        var wasOnline: Bool?
+        for await isOnline in network.isOnlineUpdates {
+            if wasOnline == false, isOnline {
+                logger.info("Network restored: reconnecting the price feed")
+                await feed.reconnect()
+            }
+            wasOnline = isOnline
+        }
     }
 
     func appDidEnterBackground() {
