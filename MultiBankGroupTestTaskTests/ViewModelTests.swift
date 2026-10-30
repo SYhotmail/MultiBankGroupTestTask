@@ -11,13 +11,13 @@ import Testing
 
 /// Shared setup: a real `StockSymbolsPriceListener` over a fake feed and provider, so view models are
 /// tested against the same model the app uses.
-/// Records the issues a view model reports.
+/// Records the errors a view model reports.
 @MainActor
-final class IssueRecorder {
-    private(set) var issues: [(issue: StockSymbolsIssue, debugDescription: String)] = []
+final class ErrorRecorder {
+    private(set) var errors: [(error: StockSymbolsError, debugDescription: String)] = []
 
-    var handler: StockSymbolsIssueHandler {
-        { [self] issue, reason in issues.append((issue, reason)) }
+    var handler: StockSymbolsErrorHandler {
+        { [self] error, reason in errors.append((error, reason)) }
     }
 }
 
@@ -33,13 +33,13 @@ private struct Fixture {
     let provider: FakeStockSymbolsProvider
     let priceListener: StockSymbolsPriceListener
     let list: StockSymbolsListViewModel
-    let issues = IssueRecorder()
+    let errors = ErrorRecorder()
 
     init() {
         provider = FakeStockSymbolsProvider(result: .success(catalog))
         priceListener = StockSymbolsPriceListener(feed: feed)
         list = StockSymbolsListViewModel(provider: provider, priceListener: priceListener, feed: feed, logger: .empty)
-        list.onIssue = issues.handler
+        list.onError = errors.handler
     }
 
     func load() async {
@@ -56,7 +56,7 @@ private struct Fixture {
             listedSymbol: { [list] in list.symbol(ticker: $0) },
             onSymbolUpdated: { [list] in list.replace($0) },
             onSymbolDeleted: { [list] in await list.remove(ticker: $0) },
-            onIssue: issues.handler
+            onError: errors.handler
         )
     }
 }
@@ -186,15 +186,15 @@ struct StockSymbolsListViewModelTests {
         #expect(fixture.priceListener.quote(for: "AAA")?.price == 1)
     }
 
-    @Test func failedLoadReportsAnIssueAndKeepsTheList() async {
+    @Test func failedLoadReportsAnErrorAndKeepsTheList() async {
         let fixture = Fixture()
         await fixture.load()
         await fixture.provider.setResult(.failure(TestError()))
 
         await fixture.load()
 
-        #expect(fixture.issues.issues.map(\.issue) == [.symbolsUnavailable])
-        #expect(fixture.issues.issues.first?.debugDescription.contains("TestError") == true)
+        #expect(fixture.errors.errors.map(\.error) == [.symbolsUnavailable])
+        #expect(fixture.errors.errors.first?.debugDescription.contains("TestError") == true)
         #expect(fixture.list.symbols == fixture.catalog.map(\.symbol))
         #expect(!fixture.list.isLoading)
     }
@@ -312,7 +312,7 @@ struct StockSymbolDetailViewModelTests {
         #expect(fixture.priceListener.quote(for: "CCC") == StockQuote(price: 20, updatedAt: .referenceFixture))
     }
 
-    @Test func notFoundDeletesTheSymbolWithoutAnIssue() async {
+    @Test func notFoundDeletesTheSymbolWithoutAnError() async {
         let fixture = Fixture()
         await fixture.load()
         let detail = fixture.detail(1)
@@ -323,18 +323,18 @@ struct StockSymbolDetailViewModelTests {
         #expect(fixture.list.symbol(ticker: "BBB") == nil)
         #expect(detail.quote == nil)
         #expect(await fixture.feed.trackedSymbols.map(\.symbol.ticker) == ["AAA", "CCC"])
-        #expect(fixture.issues.issues.isEmpty)
+        #expect(fixture.errors.errors.isEmpty)
     }
 
-    @Test func otherFailuresReportAnIssue() async {
+    @Test func otherFailuresReportAnError() async {
         let fixture = Fixture()
         await fixture.load()
         await fixture.provider.setSymbolResult(.failure(TestError()))
 
         await fixture.detail(1).refresh()
 
-        #expect(fixture.issues.issues.map(\.issue) == [.symbolUnavailable(ticker: "BBB")])
-        #expect(fixture.issues.issues.first?.debugDescription.contains("TestError") == true)
+        #expect(fixture.errors.errors.map(\.error) == [.symbolUnavailable(ticker: "BBB")])
+        #expect(fixture.errors.errors.first?.debugDescription.contains("TestError") == true)
         #expect(fixture.list.symbols == fixture.catalog.map(\.symbol))
     }
 
@@ -381,7 +381,7 @@ private struct NavigationFixture {
 
 @MainActor
 struct StockSymbolsNavigationViewModelTests {
-    @Test func alertMirrorsTheModelIssue() async {
+    @Test func alertMirrorsTheModelError() async {
         let fixture = NavigationFixture()
         #expect(fixture.viewModel.alert == nil)
 
@@ -465,7 +465,7 @@ struct StockSymbolsNavigationViewModelTests {
         #expect(fixture.viewModel.alertDebugDescription == nil)
     }
 
-    @Test func retryingASymbolsIssueReloads() async {
+    @Test func retryingASymbolsErrorReloads() async {
         let fixture = NavigationFixture()
         await fixture.provider.setResult(.failure(TestError()))
         await fixture.load()
@@ -478,7 +478,7 @@ struct StockSymbolsNavigationViewModelTests {
         #expect(fixture.viewModel.listViewModel.rows.count == fixture.catalog.count)
     }
 
-    @Test func retryingASymbolIssueRefreshesThatSymbol() async {
+    @Test func retryingASymbolErrorRefreshesThatSymbol() async {
         let fixture = NavigationFixture()
         await fixture.load()
         let detail = fixture.viewModel.detailViewModel(for: fixture.catalog[0].symbol)
@@ -493,7 +493,7 @@ struct StockSymbolsNavigationViewModelTests {
         #expect(detail.symbol.name == "AAA Group")
     }
 
-    @Test func retryingAConnectionIssueReconnects() async {
+    @Test func retryingAConnectionErrorReconnects() async {
         let fixture = NavigationFixture()
         await fixture.deliver([.connectionLost(reason: "test")])
 

@@ -16,7 +16,7 @@ import OSLog
 final class StockSymbolsNavigationViewModel {
     let listViewModel: StockSymbolsListViewModel
 
-    private(set) var alert: StockSymbolsIssue?
+    private(set) var alert: StockSymbolsError?
     /// The error behind `alert`, for Debug builds.
     private(set) var alertDebugDescription: String?
 
@@ -36,7 +36,7 @@ final class StockSymbolsNavigationViewModel {
         listViewModel = StockSymbolsListViewModel(provider: provider, priceListener: priceListener, feed: feed, logger: logger)
 
         // Weak: this view model owns the price listener and the list, so strong captures would be retain cycles.
-        listViewModel.onIssue = { [weak self] issue, reason in self?.report(issue, debugDescription: reason) }
+        listViewModel.onError = { [weak self] error, reason in self?.report(error, debugDescription: reason) }
         priceListener.onConnectionLost = { [weak self] reason in
             self?.logger.error("Connection lost: \(reason)")
             self?.report(.connectionLost, debugDescription: reason)
@@ -60,8 +60,8 @@ final class StockSymbolsNavigationViewModel {
                                    logger: logger,
                                    listedSymbol: { [listViewModel] in listViewModel.symbol(ticker: $0) },
                                    onSymbolUpdated: { [listViewModel] in listViewModel.replace($0) },
-                                   onSymbolDeleted: { [listViewModel] in await listViewModel.remove(ticker: $0) }) { [weak self] issue, reason in
-            self?.report(issue, debugDescription: reason)
+                                   onSymbolDeleted: { [listViewModel] in await listViewModel.remove(ticker: $0) }) { [weak self] error, reason in
+            self?.report(error, debugDescription: reason)
         }
     }
 
@@ -89,9 +89,9 @@ final class StockSymbolsNavigationViewModel {
         alertDebugDescription = nil
     }
 
-    func retry(_ issue: StockSymbolsIssue) async {
+    func retry(_ error: StockSymbolsError) async {
         dismissAlert()
-        switch issue {
+        switch error {
         case .symbolsUnavailable:
             await listViewModel.load()
         case .symbolUnavailable(let ticker):
@@ -102,14 +102,14 @@ final class StockSymbolsNavigationViewModel {
         }
     }
 
-    /// Shows `issue` unless an alert is already showing: don't replace one the user hasn't seen yet.
-    private func report(_ issue: StockSymbolsIssue, debugDescription: String) {
+    /// Shows `error` unless an alert is already showing: don't replace one the user hasn't seen yet.
+    private func report(_ error: StockSymbolsError, debugDescription: String) {
         guard alert == nil else {
-            logger.notice("Not showing \(String(describing: issue), privacy: .public): another alert is showing")
+            logger.notice("Not showing \(String(describing: error), privacy: .public): another alert is showing")
             return
         }
-        logger.notice("Showing alert for \(String(describing: issue), privacy: .public)")
-        alert = issue
+        logger.notice("Showing alert for \(String(describing: error), privacy: .public)")
+        alert = error
         alertDebugDescription = debugDescription
     }
 }

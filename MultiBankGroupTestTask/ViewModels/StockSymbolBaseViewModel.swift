@@ -19,20 +19,20 @@ class StockSymbolBaseViewModel {
     let feed: any PriceFeedProvider
     let logger: Logger
     /// Where a failed load or refresh is reported.
-    var onIssue: StockSymbolsIssueHandler?
+    var onError: StockSymbolsErrorHandler?
 
     init(
         provider: any StockSymbolsProvider,
         priceListener: StockSymbolsPriceListener,
         feed: any PriceFeedProvider,
         logger: Logger,
-        onIssue: StockSymbolsIssueHandler? = nil
+        onError: StockSymbolsErrorHandler? = nil
     ) {
         self.provider = provider
         self.priceListener = priceListener
         self.feed = feed
         self.logger = logger
-        self.onIssue = onIssue
+        self.onError = onError
     }
 
     var connectionState: ConnectionState { priceListener.connectionState }

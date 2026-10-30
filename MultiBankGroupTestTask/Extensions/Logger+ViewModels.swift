@@ -8,7 +8,7 @@
 import OSLog
 
 extension Logger {
-    /// What the screens' view models do: loads, refreshes, feed controls and reported issues.
+    /// What the screens' view models do: loads, refreshes, feed controls and reported errors.
     /// Filter in Console with `subsystem:<bundle id> category:ViewModels`.
     /// Tests pass `Logger.empty` instead, which discards everything.
     static let viewModels = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MultiBankGroupTestTask", category: "ViewModels")

@@ -30,13 +30,13 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
         listedSymbol: @escaping @MainActor (String) -> StockSymbol?,
         onSymbolUpdated: @escaping (StockSymbol) -> Void,
         onSymbolDeleted: @escaping (String) async -> Void,
-        onIssue: StockSymbolsIssueHandler? = nil
+        onError: StockSymbolsErrorHandler? = nil
     ) {
         initialSymbol = symbol
         self.listedSymbol = listedSymbol
         self.onSymbolUpdated = onSymbolUpdated
         self.onSymbolDeleted = onSymbolDeleted
-        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onIssue: onIssue)
+        super.init(provider: provider, priceListener: priceListener, feed: feed, logger: logger, onError: onError)
     }
     
     private var ticker: String { initialSymbol.ticker }
@@ -75,7 +75,7 @@ final class StockSymbolDetailViewModel: StockSymbolBaseViewModel {
         } catch {
             let errorText = String(reflecting: error)
             logger.error("Couldn't refresh \(self.ticker, privacy: .public): \(errorText)")
-            onIssue?(.symbolUnavailable(ticker: ticker), errorText)
+            onError?(.symbolUnavailable(ticker: ticker), errorText)
         }
     }
     
