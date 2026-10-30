@@ -29,15 +29,14 @@ struct PriceUpdateGenerator: Sendable {
     }
 
     /// Switches to a new symbol list. Symbols already tracked keep their current price; new ones
-    /// start at the given price. Duplicate tickers keep the first occurrence.
+    /// start at the given price.
     mutating func track(_ symbolPrices: [StockSymbolPrice]) {
         var newPrices: [String: Decimal] = [:]
-        tickers = symbolPrices.compactMap { symbolPrice in
+        for symbolPrice in symbolPrices {
             let ticker = symbolPrice.symbol.ticker
-            guard newPrices[ticker] == nil else { return nil }
             newPrices[ticker] = prices[ticker] ?? symbolPrice.price
-            return ticker
         }
+        tickers = symbolPrices.map(\.symbol.ticker)
         prices = newPrices
     }
 

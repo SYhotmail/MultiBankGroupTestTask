@@ -46,15 +46,6 @@ struct StockSymbolsPriceListenerTests {
         #expect(model.quote(for: "BBB") == nil)
     }
 
-    @Test func duplicateTickersKeepTheFirstOccurrence() async {
-        let model = StockSymbolsPriceListener(feed: feed)
-
-        await model.track([.fixture("AAA", price: 1), .fixture("AAA", price: 2)])
-
-        #expect(model.quote(for: "AAA")?.price == 1)
-        #expect(await feed.trackedSymbols.count == 1)
-    }
-
     @Test func untrackStopsPricingASymbol() async {
         let model = await makeModel()
 

@@ -40,14 +40,14 @@ final class StockSymbolsPriceListener {
     }
 
     /// Prices exactly these symbols from now on. Symbols already tracked keep their live quote; new ones
-    /// start from the given price; others are dropped. Duplicate tickers keep the first occurrence.
+    /// start from the given price; others are dropped. The list removes duplicate tickers when it loads.
     func track(_ symbolPrices: [StockSymbolPrice]) async {
-        var seen = Set<String>()
-        tracked = symbolPrices.filter { seen.insert($0.symbol.ticker).inserted }
-        quotes = Dictionary(uniqueKeysWithValues: tracked.map { symbolPrice in
+        tracked = symbolPrices
+        // Not `uniqueKeysWithValues`: that would crash the app if a duplicate ever got this far.
+        quotes = Dictionary(tracked.map { symbolPrice in
             let ticker = symbolPrice.symbol.ticker
             return (ticker, quotes[ticker] ?? StockQuote(price: symbolPrice.price, updatedAt: symbolPrice.timestamp))
-        })
+        }, uniquingKeysWith: { first, _ in first })
         await track()
     }
     
