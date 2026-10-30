@@ -9,7 +9,7 @@ import Foundation
 
 /// Text-message WebSocket transport. Abstracted so the price feed can be tested without a network.
 /// `Sendable`: the feed's actor and its echo watchdog both use the same connection.
-protocol WebSocketConnection: AnyObject, Sendable {
+protocol WebSocketConnection: Sendable {
     /// Opens the socket and returns once the server has answered.
     func connect() async throws
     /// Sends UTF-8 encoded text (e.g. JSON) as one WebSocket text frame.
@@ -19,7 +19,14 @@ protocol WebSocketConnection: AnyObject, Sendable {
     /// answers in text frames works too.
     func receive() async throws -> Data
     /// Closes the socket. Pending `receive()` calls fail.
-    func close()
+    /// - Parameter reason: Sent with the close frame; WebSocket allows at most 123 bytes.
+    func close(reason: Data?)
+}
+
+extension WebSocketConnection {
+    func close() {
+        close(reason: nil)
+    }
 }
 
 nonisolated enum WebSocketConnectionError: Error, Equatable {
@@ -54,7 +61,7 @@ final class URLSessionWebSocketConnection: WebSocketConnection {
     }
 
     /// The text a frame carries; text frames must be valid UTF-8, so refuse rather than mangle.
-    static func textFrame(from message: Data) throws -> String {
+    static func textFrame(from message: Data) throws(WebSocketConnectionError) -> String {
         guard let text = String(validating: message, as: UTF8.self) else {
             throw WebSocketConnectionError.invalidUTF8
         }
@@ -72,7 +79,7 @@ final class URLSessionWebSocketConnection: WebSocketConnection {
         }
     }
 
-    func close() {
-        task.cancel(with: .normalClosure, reason: nil)
+    func close(reason: Data?) {
+        task.cancel(with: .normalClosure, reason: reason)
     }
 }

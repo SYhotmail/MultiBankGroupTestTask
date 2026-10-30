@@ -73,7 +73,7 @@ actor WebSocketPriceFeed: PriceFeed {
     private var session: Task<Void, Never>?
 
     init(
-        generator: PriceUpdateGenerator,
+        generator: PriceUpdateGenerator = .init(symbolPrices: []),
         updateInterval: Duration = .seconds(2),
         echoTimeout: Duration = .seconds(10),
         reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
@@ -90,7 +90,7 @@ actor WebSocketPriceFeed: PriceFeed {
     }
 
     init(url: URL) {
-        self.init(generator: PriceUpdateGenerator(symbolPrices: [])) {
+        self.init() {
             URLSessionWebSocketConnection(url: url)
         }
     }
@@ -153,7 +153,7 @@ actor WebSocketPriceFeed: PriceFeed {
                 try Task.checkCancellation()
                 failures = 0
                 continuation.yield(.connectionChanged(.connected))
-                while true {
+                while !Task.isCancelled {
                     try await exchangeUpdates(over: connection)
                     try await Task.sleep(for: updateInterval)
                 }

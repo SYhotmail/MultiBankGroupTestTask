@@ -97,7 +97,7 @@ final class EchoWebSocketConnection: WebSocketConnection {
         }
     }
 
-    func close() {
+    func close(reason: Data?) {
         let pending = state.withLock { state in
             state.isClosed = true
             defer { state.silentReceive = nil }
