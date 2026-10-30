@@ -21,23 +21,23 @@ final class StockSymbolsNavigationViewModel {
     private(set) var alertDebugDescription: String?
 
     private let provider: any StockSymbolsProvider
-    private let market: StockSymbolsPriceListener
+    private let priceListener: StockSymbolsPriceListener
     private var storedSelection: String?
     let feed: any PriceFeed
     private let logger: Logger
 
     /// - Parameter logger: Shared with the screens' view models; pass `.empty` in tests.
     init(provider: any StockSymbolsProvider, feed: any PriceFeed, logger: Logger) {
-        let market = StockSymbolsPriceListener(feed: feed)
+        let priceListener = StockSymbolsPriceListener(feed: feed)
         self.provider = provider
-        self.market = market
+        self.priceListener = priceListener
         self.feed = feed
         self.logger = logger
-        listViewModel = StockSymbolsListViewModel(provider: provider, market: market, feed: feed, logger: logger)
+        listViewModel = StockSymbolsListViewModel(provider: provider, priceListener: priceListener, feed: feed, logger: logger)
 
-        // Weak: this view model owns the market and the list, so strong captures would be retain cycles.
+        // Weak: this view model owns the price listener and the list, so strong captures would be retain cycles.
         listViewModel.onIssue = { [weak self] issue, reason in self?.report(issue, debugDescription: reason) }
-        market.onConnectionLost = { [weak self] reason in
+        priceListener.onConnectionLost = { [weak self] reason in
             self?.logger.error("Connection lost: \(reason)")
             self?.report(.connectionLost, debugDescription: reason)
         }
@@ -55,7 +55,7 @@ final class StockSymbolsNavigationViewModel {
     func detailViewModel(for symbol: StockSymbol) -> StockSymbolDetailViewModel {
         StockSymbolDetailViewModel(symbol: symbol,
                                    provider: provider,
-                                   market: market,
+                                   priceListener: priceListener,
                                    feed: feed,
                                    logger: logger,
                                    listedSymbol: { [listViewModel] in listViewModel.symbol(ticker: $0) },
@@ -67,7 +67,7 @@ final class StockSymbolsNavigationViewModel {
 
     /// Turns feed events into live quotes until the feed's stream ends. Run once for the app's lifetime.
     func observeFeed() async {
-        await market.observeFeed()
+        await priceListener.observeFeed()
     }
 
     func appDidEnterBackground() {
