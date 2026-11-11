@@ -19,6 +19,7 @@
 /* Begin PBXFileReference section */
 		218AC0B930925B0B00E679FA /* MultiBankGroupTestTask.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MultiBankGroupTestTask.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		218AC0C630925B0C00E679FA /* MultiBankGroupTestTaskTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MultiBankGroupTestTaskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		219292B930A468FE0075088D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +54,7 @@
 			children = (
 				218AC0BB30925B0B00E679FA /* MultiBankGroupTestTask */,
 				218AC0C930925B0C00E679FA /* MultiBankGroupTestTaskTests */,
+				219292B930A468FE0075088D /* README.md */,
 				218AC0BA30925B0B00E679FA /* Products */,
 			);
 			sourceTree = "<group>";
